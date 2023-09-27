@@ -1,4 +1,5 @@
-# setup script for the jittering project
+# setup script for the Cascadia project
+
 # install required packages if necessary
 if(FALSE) {
   install.packages("Matrix")
@@ -21,7 +22,18 @@ if(FALSE) {
   install.packages("ncdf4")
   install.packages("pracma")
   install.packages("concaveman")
-  install.packages("fmesher")
+  install.packages("maps")
+  install.packages("mapproj")
+  install.packages("mapdata")
+  install.packages("rgeos")
+  install.packages("maptools")
+  install.packages("sp")
+  install.packages("raster")
+  install.packages("rgdal")
+  install.packages("geodata")
+  install.packages("dplyr")
+  install.packages("plotly")
+  install.packages("stringr")
 }
 
 # load required packages and R scripts
@@ -40,13 +52,24 @@ library(ggplot2)
 library(colorspace)
 library(TMB)
 library(plyr)
-#library(INLA)
+library(INLA)
 library(sf)
 library(ncdf4)
 library(pracma)
 library(concaveman)
 library(devtools)
-#library(fmesher)
+library(maps)
+library(mapproj)
+library(mapdata)
+library(rgeos)
+library(maptools)
+library(sp)
+library(raster)
+library(rgdal)
+library(geodata)
+library(dplyr)
+library(plotly)
+library(stringr)
 
 #inf = sessionInfo()
 #if(inf$platform == "x86_64-apple-darwin17.0 (64-bit)") {
@@ -66,15 +89,17 @@ library(devtools)
 #  inla.setOption(num.threads=1) # consider raising
  # options(error=recover)
 #}
-#options(warn=1)
 
-#setwd("~/git/csz")
-#source("code/loadSubDat.R")
-#source("code/slab.R")
-#source("code/okada.R")
-#source("code/plotter.R")
-#source("code/genericSpatialPlottingFunctions.R")
-#source("code/utilityFuns.R")
+options(warn=1)
+
+setwd("C://Users/alast/OneDrive/Documents/Uni/NTNU/Masters Project/CSZ/R")
+source("Code/loadSubDat.R")
+source("Code/slab.R")
+source("Code/okada.R")
+source("Code/plotter.R")
+source("Code/genericSpatialPlottingFunctions.R")
+source("Code/utilityFuns.R")
+source("Code/slab2map.R")
 #source("code/test.R")
 
 ## load in global variables made from the following script: 
