@@ -27,7 +27,7 @@ readCountries <- function(){
   
   border <- read_sf('Data/Border/Canada_and_US_Border.shp')
   
-  return(list(Canada=canadaProv, US=usStates, CAN.US=border))
+  return(list(Canada=canadaProv, US=usStates, canUSBorder=border))
 }
 
 # varName ∈ ["depth", "dip", "strike", "thickness", "uncertainty"]
@@ -52,43 +52,57 @@ readGrid <- function(varName){
 }
 
 
-plotGrid <- function(varName, title){
-  
+plotGridGG <- function(varName, title){
+
   # read in the border data
   borders <- readCountries()
-  canadaBorders <- borders$Canada
-  usBorders <- borders$US
-  canUSBorder <- borders$CAN.US
+  canadaBorders <- ms_simplify(borders$Canada, weighting=0.7) #, tol=0.05, topologyPreserve=TRUE)
+  usBorders <- ms_simplify(borders$US, weighting=0.7)
+  canUSBorder <- borders$canUSBorder
   
+  # read in the slab2 data
   grid <- readGrid(varName)
   
-  stateNames <- data.frame(Lon = c(-121, -121, -121, -121.5),
-                            Lat = c(41, 44, 47.5, 50),
+  # create dataframes for labels
+  placeNames <- data.frame(Lon = c(-125.5),
+                           Lat = c(49.7),
+                           Place = c("Vancouver Island"))
+  
+  stateNames <- data.frame(Lon = c(-121.75, -121.5, -121, -121.5),
+                            Lat = c(40.9, 44, 47.5, 50),
                             State = c("California", "Oregon", "Washington", "British Columbia"))
   
   countryNames <- data.frame(Lon=c(-119.5, -119.5),
                               Lat=c(49.2, 48.8),
                               Country=c("Canada", "USA"))
   
+  myBreaks <- c(seq(-100,0,100/9))
+  
   ggplot() +
     geom_sf(data = usBorders, fill = "white", colour="black") +
     geom_sf(data = canadaBorders, fill = "white", colour="black") +
-    geom_sf(data=canUSBorder, linewidth=) +
-    geom_contour_filled(data=grid[grid$z > -50,], aes(x=lon, y=lat, z = z), alpha=0.6) +
-    scale_fill_brewer(palette = "Spectral") +
-    geom_text(data=stateNames, aes(x=Lon, y=Lat, label=State), size=2.5) +
-    geom_text(data=countryNames, aes(x=Lon, y=Lat, label=Country), size=3, hjust=1) +
+    geom_sf(data=canUSBorder, linewidth=0.6, colour="black", linetype=11) +
+    geom_contour_filled(data=grid[grid$z > -100,], aes(x=lon, y=lat, z = z), alpha=0.6, bins=9) +
+    scale_fill_brewer(palette = "OrRd", direction=1) +
+    geom_text(data=stateNames, aes(x=Lon, y=Lat, label=State), size=4) +
+    geom_text(data=countryNames, aes(x=Lon, y=Lat, label=Country), size=4.5, hjust=1) +
+    geom_text(data=placeNames, aes(x=Lon, y=Lat, label=Place), size=3.5, angle=-40) +
     coord_sf(xlim=-c(130, 120), ylim=c(40, 50))+
     labs(x = "Longitude", y = "Latitude", fill=varName) +
     theme_bw() +
-    ggtitle(paste("Cascadia Slab2 Data -", title))
+    ggtitle(paste("Cascadia Slab2 Data -", title)) +
+    theme(panel.background = element_rect('#f0feff')) +
+    theme(plot.title = element_text(size=25)) +
+    theme(legend.position = "bottom")
 }
 
-plotGrid("depth", "Depth (km)")
+plotGridGG("depth", "Depth (km)")
 
-ggsave(file="slab2-uncertainty.png", path="Plots/", height=6, width=6)
+ggsave(file="slab2-depth.png", path="Plots/", height=9, width=9)
 
 # project into easting and northing
 
-
+plotGridPlotly <- function(varName, title){
+  
+}
 

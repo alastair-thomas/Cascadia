@@ -34,6 +34,12 @@ if(FALSE) {
   install.packages("dplyr")
   install.packages("plotly")
   install.packages("stringr")
+  install.packages("smoothr")
+  install.packages("smoothr")
+  install.packages("units")
+  install.packages("rgeos")
+  install.packages("rmapshaper")
+  install.packages("metR")
 }
 
 # load required packages and R scripts
@@ -70,6 +76,11 @@ library(geodata)
 library(dplyr)
 library(plotly)
 library(stringr)
+library(smoothr)
+library(units)
+library(rgeos)
+library(rmapshaper)
+library(metR)
 
 #inf = sessionInfo()
 #if(inf$platform == "x86_64-apple-darwin17.0 (64-bit)") {
