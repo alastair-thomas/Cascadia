@@ -40,6 +40,8 @@ if(FALSE) {
   install.packages("rgeos")
   install.packages("rmapshaper")
   install.packages("metR")
+  install.packages("TMB")
+  install.packages("stars")
 }
 
 # load required packages and R scripts
@@ -81,6 +83,8 @@ library(units)
 library(rgeos)
 library(rmapshaper)
 library(metR)
+library(TMB)
+library(stars)
 
 #inf = sessionInfo()
 #if(inf$platform == "x86_64-apple-darwin17.0 (64-bit)") {

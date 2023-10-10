@@ -52,7 +52,7 @@ getFullFaultGeom = function(triangulatedGeom=NULL, n=2000, max.n=-1, max.edge=c(
 
 # loads the Slab 2.0 model output points and depths
 loadSlab2 = function() {
-  slabDir = "data/cas_surf_09.21_slab2_output/"
+  slabDir = "Data/Slab2/"
   
   # doesn't work/bad depth values due to NAs:
   # slab = read.csv(paste0(slabDir, "cas_slab2_nod_09.04.23.csv"))
@@ -111,10 +111,10 @@ discretizeSlab2 = function(n=2000, max.n=-1, max.edge=c(15, 100), maxDepth=30,
   # get projected coordinates
   xy = projCSZ(lonLat)
   
-  if(FALSE) {
-    plotWithColor(xy[,1], xy[,2], depths, pch=19, cex=.3, xlab="Easting (km)", 
-                  ylab="Northing (km)")
-  }
+  # if(FALSE) {
+  #   plotWithColor(xy[,1], xy[,2], depths, pch=19, cex=.3, xlab="Easting (km)", 
+  #                 ylab="Northing (km)")
+  # }
   
   # keep only points with appropriate depth
   goodI = abs(depths) <= maxDepth
@@ -147,29 +147,30 @@ discretizeSlab2 = function(n=2000, max.n=-1, max.edge=c(15, 100), maxDepth=30,
   mesh = inla.mesh.2d(n=n, boundary=list(concaveInt, hullExt), max.n=max.n, 
                       max.edge=max.edge, cutoff=cutoff, ...)
   
-  if(FALSE) {
-    plotWithColor(xy[,1], xy[,2], depths, pch=19, cex=.3, xlab="Easting (km)", 
-                  ylab="Northing (km)")
-    polygon(xyHull[,1], xyHull[,2], border="green")
-  }
-  
-  if(FALSE) {
-    # old way to construct interior boundary:
-    # hullInt = inla.nonconvex.hull.basic(xy, resolution=350, convex=-.012)
-    # xyHull = hullInt$loc
-    # 
-    # mesh = inla.mesh.2d(n=n, boundary=list(hullInt, hullExt), max.n=max.n, 
-    #                     max.edge=max.edge, cutoff=cutoff, ...)
-    
-    # plot the mesh
-    plot(mesh, asp=1)
-    points(xy[,1], xy[,2], col="red", pch=".")
-    plot(xy[,1], xy[,2], pch=".", col="blue")
-    polygon(concaveHull)
-  }
+  # if(FALSE) {
+  #   plotWithColor(xy[,1], xy[,2], depths, pch=19, cex=.3, xlab="Easting (km)", 
+  #                 ylab="Northing (km)")
+  #   polygon(xyHull[,1], xyHull[,2], border="green")
+  # }
+  # 
+  # if(FALSE) {
+  #   # old way to construct interior boundary:
+  #   # hullInt = inla.nonconvex.hull.basic(xy, resolution=350, convex=-.012)
+  #   # xyHull = hullInt$loc
+  #   # 
+  #   # mesh = inla.mesh.2d(n=n, boundary=list(hullInt, hullExt), max.n=max.n, 
+  #   #                     max.edge=max.edge, cutoff=cutoff, ...)
+  #   
+  #   # plot the mesh
+  #   plot(mesh, asp=1)
+  #   points(xy[,1], xy[,2], col="red", pch=".")
+  #   plot(xy[,1], xy[,2], pch=".", col="blue")
+  #   polygon(concaveHull)
+  # }
   
   faultGeom = getGeomFromMesh(mesh, extent=concaveHull, maxDepth=maxDepth, 
                               method=method)
+  
   
   c(faultGeom, list(extent=concaveHull, maxDepth=maxDepth))
 }

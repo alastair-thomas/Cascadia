@@ -1,0 +1,24 @@
+# The directory benchmark at top level
+/benchmark/
+# Any file or directory that ends with ~
+*~
+# Any file or directory that ends with following extensions:
+*.o
+*.so
+*.gz
+# Any file or directory with the following names:
+.Rhistory
+Rgrid.pe*
+Rgrid.po*
+Rgrid.e*
+Rgrid.o*
+f1b2list1
+f1b2list12
+f1b2list13
+nf1b2list1
+nf1b2list12
+nf1b2list13
+_region_.log
+_region_.tex
+_region_.el
+prv_report.log
