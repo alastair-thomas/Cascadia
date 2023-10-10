@@ -53,7 +53,7 @@ readGrid <- function(varName){
     z = -1 * z
   }
   
-  df <- data.frame(lon = allLon, lat = allLat, z = z)
+  df <- data.frame(Lon = allLon, Lat = allLat, z = z)
   df = na.omit(df)
   rownames(df) <- 1:nrow(df) 
   return(df)
@@ -66,22 +66,24 @@ toUTM <- function(x, isDataFrame=FALSE){
   utmProj = st_crs("EPSG:32610")
   #lonLatProj = st_crs("EPSG:4326")
   
-  toProj = utmProj
-  #fromProj = lonLatProj
-  
   # convert to an sf object if input is dataframe
   if (isDataFrame){
-    xConvert = st_as_sf(x, coords = c("Lon", "Lat"))
+    z = x$z
+    xConvert = st_as_sf(x, coords = c("Lon", "Lat"), crs=st_crs("EPSG:4326"))
   }
   else{
     xConvert = x
   }
   
   # transform coordinates and convert back to a matrix
-  out = st_transform(xConvert, toProj)
+  out = st_transform(xConvert, utmProj)
   
   if (isDataFrame){
-    out = st_coordinates(out)[,1:2]
+    out = data.frame(X = st_coordinates(out)[,1],
+                     Y = st_coordinates(out)[,2],
+                     Z = z)
+      
+      #st_coordinates(out)[,1:2]
   }
   
   return(out)
@@ -94,23 +96,37 @@ fromUTM <- function(x){
 testPlot <- function(){
   # read in the border data
   borders <- readCountries()
-  canadaBorders = ms_simplify(borders$Canada, weighting=0.7) #, tol=0.05, topologyPreserve=TRUE)
-  usBorders = ms_simplify(borders$US, weighting=0.7)
-  canUSBorder = borders$canUSBorder
   
+  # extract Canada data and project
+  canadaBorders = ms_simplify(borders$Canada, weighting=0.7) #, tol=0.05, topologyPreserve=TRUE)
   canadaBorders = toUTM(canadaBorders)
+  
+  # extract US data and project
+  usBorders = ms_simplify(borders$US, weighting=0.7)
   usBorders = toUTM(usBorders)
+  
+  # extract the border data and project
+  canUSBorder = ms_simplify(borders$canUSBorder, weighting=0.7)
   canUSBorder = toUTM(canUSBorder)
   
+  
+  # read in the slab2 data
+  grid <- readGrid("depth")
+  grid2 <- grid[grid$z < 50,]
+  
+  grid3 = toUTM(grid2, TRUE)
   #browser()
   
-  utmProj = st_crs("EPSG:32610")
+  #utmProj = st_crs("EPSG:32610")
   
   ggplot() +
     geom_sf(data = usBorders, fill = "white", colour="black") +
     geom_sf(data = canadaBorders, fill = "white", colour="black") +
-    geom_sf(data=canUSBorder, linewidth=0.6, colour="black", linetype=11)
-    #coord_sf(xlim=-c(130, 120), ylim=c(40, 50), datum = utmProj)
+    geom_sf(data=canUSBorder, linewidth=0.6, colour="black", linetype=11)+
+    metR::geom_contour_fill(data=grid3, aes(x=X, y=Y, z = Z), alpha=0.65, bins=100) +
+    scale_fill_distiller(palette = "OrRd", direction=1,
+                         name = "title")
+    #coord_sf(xlim=-c(130, 120), ylim=c(40, 50))
 }
 
 testPlot()
@@ -138,17 +154,17 @@ plotGridGG <- function(varName, title, limitZ = NA){
   placeNames <- data.frame(Lon = c(-125.5),
                            Lat = c(49.7),
                            Place = c("Vancouver Island"))
-  placeNames = st_as_sf(placeNames, coords = c("Lon", "Lat"), crs=lonLatProj)
+  #placeNames = st_as_sf(placeNames, coords = c("Lon", "Lat"), crs=lonLatProj)
   
   stateNames <- data.frame(Lon = c(-121.75, -121.5, -121, -121.5),
                             Lat = c(40.9, 44, 47.5, 50),
                             State = c("California", "Oregon", "Washington", "British Columbia"))
-  stateNames = st_as_sf(stateNames, coords = c("Lon", "Lat"), crs=lonLatProj)
+  #stateNames = st_as_sf(stateNames, coords = c("Lon", "Lat"), crs=lonLatProj)
   
   countryNames <- data.frame(Lon=c(-119.5, -119.5),
                               Lat=c(49.2, 48.8),
                               Country=c("Canada", "USA"))
-  countryNames = st_as_sf(countryNames, coords = c("Lon", "Lat"), crs=lonLatProj)
+  #countryNames = st_as_sf(countryNames, coords = c("Lon", "Lat"), crs=lonLatProj)
   
   #browser()
   utmProj = st_crs("EPSG:32610")
@@ -162,9 +178,9 @@ plotGridGG <- function(varName, title, limitZ = NA){
                          name = title) +
                          #labels = c('0 km', '10 km', '20 km', '30 km', '40 km', '50 km')) +
     #scale_fill_gradient2(name="Depth (Km)") +
-    geom_sf_text(data=stateNames, aes(x=Lon, y=Lat, label=State), size=4) +
-    geom_sf_text(data=countryNames, aes(x=Lon, y=Lat, label=Country), size=4.5, hjust=1) +
-    geom_sf_text(data=placeNames, aes(x=Lon, y=Lat, label=Place), size=3.5, angle=-40) +
+    geom_text(data=stateNames, aes(x=Lon, y=Lat, label=State), size=4) +
+    geom_text(data=countryNames, aes(x=Lon, y=Lat, label=Country), size=4.5, hjust=1) +
+    geom_text(data=placeNames, aes(x=Lon, y=Lat, label=Place), size=3.5, angle=-40) +
     coord_sf(xlim=-c(130, 120), ylim=c(40, 50), datum = utmProj)+
     labs(x = "Easting", y = "Northing", fill=varName) +
     theme_bw() +
