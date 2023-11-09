@@ -36,7 +36,7 @@ Type objective_function<Type>::operator() ()
 
   // scale by tau afterwards
   
-  vector<Type> untaperedSlips = exp(mu + x / sqrt(tau));
+  vector<Type> untaperedSlips = exp(mu + spde_proj %*% (x / sqrt(tau)));
   
   vector<Type> taper = 1.0 - exp(-lambda*depth); // 1.0 to make it a float
   vector<Type> taperedSlips = taper*untaperedSlips;
