@@ -12,7 +12,7 @@ taperNew = function(lambda, depth){
 }
 
 taperSimple = function(lambda, depth){
-  return(1 - exp(lambda*depth))
+  return(exp(-lambda*depth))
 }
 
 depths = c(0:30000) # depths in meters to calculate taper over
@@ -21,10 +21,10 @@ depths = c(0:30000) # depths in meters to calculate taper over
 l1 = 20
 y1 = taperPaper(l1, depths)
 
-l2 = 0.0006033395
+l2 = 1/2000
 y2 = taperNew(l2, depths)
 
-l3 = 1/1000
+l3 = 1/10000
 y3 = taperSimple(l3, depths)
 
 data = data.frame(depth=depths,
@@ -33,9 +33,9 @@ data = data.frame(depth=depths,
 # plot using plotly
 fig = plot_ly(data, x = ~depth) 
 #fig = fig %>% add_trace(y = ~y1, name = 'Old', type="scatter", mode = 'lines')
-#fig = fig %>% add_trace(y = ~y2, name = 'New', type="scatter", mode = 'lines')
-fig = fig %>% add_trace(y = ~y3, name = 'New', type="scatter", mode = 'lines')
-fig = fig %>% layout(title = "",
+fig = fig %>% add_trace(y = ~y2, name = '1 - exp(lambda*(depth - 30000))', type="scatter", mode = 'lines')
+fig = fig %>% add_trace(y = ~y3, name = 'exp(-lambda*depth)', type="scatter", mode = 'lines')
+fig = fig %>% layout(title = "Example Taper Functions: Lambda=1/2000",
                       xaxis = list(title = "Depth (m)"),
                       yaxis = list (title = "Taper"))
 fig

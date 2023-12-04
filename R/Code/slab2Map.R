@@ -36,7 +36,7 @@ plotGrid = function(varName = "depth", projection="NULL"){
   g = g +
     geom_sf(data=grid, aes(color=z)) +
     #geom_sf(data=grid, aes(color=z), stat="contour_filled") +
-    scale_fill_distiller(palette = "OrRd", direction=1, name = "Depth (km)") +
+    #scale_fill_distiller(palette = "OrRd", direction=1, name = "Depth (km)") +
     theme(legend.position = "right", legend.key.height = unit(3, 'cm'))
 
   # set the map in the correct projection

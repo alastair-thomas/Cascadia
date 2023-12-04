@@ -21,9 +21,9 @@ for (i in 1:K){
 }
 
 # This should use the midpoint of our subfaults
-loc = cbind(x, y)
+locations = cbind(x, y)
 
-concaveHull = concaveman(loc)
+concaveHull = concaveman(locations)
 
 concaveInt = inla.mesh.segment(concaveHull, is.bnd=FALSE)
 # make sure concaveInt is in a format expected by inla.mesh.2d
@@ -33,11 +33,11 @@ concaveInt$grp = matrix(rep(as.integer(1), nrow(concaveInt$loc)), ncol=1)
 concaveInt$loc = matrix(concaveInt$loc, ncol=2)
 concaveInt$loc = concaveInt$loc[nrow(concaveInt$loc):1, ]
 
-hullExt = inla.nonconvex.hull.basic(loc, resolution=150, convex=-.4)
+hullExt = inla.nonconvex.hull.basic(locations, resolution=150, convex=-.4)
 
 # construct mesh with INLA
 inla_mesh = inla.mesh.2d(n=2000,
-                         loc=loc,
+                         loc=locations,
                          boundary=list(concaveInt, hullExt),
                          cutoff = 0.01)
 
@@ -49,9 +49,12 @@ plot(inla_mesh)
 # corresponds to a smoothness of 1
 inla_spde = inla.spde2.matern(inla_mesh, alpha=2)
 
+# create the projection matrix
+A = inla.spde.make.A(inla_mesh, loc = locations)
+
 # save
 setwd("~/Uni/NTNU/Masters Project/CSZ/R/Data/SPDE")
-save(inla_mesh, inla_spde, file="spde_mesh.RData")
+save(inla_mesh, inla_spde, A, file="spde_mesh.RData")
 setwd("~/Uni/NTNU/Masters Project/CSZ/R/Code")
 
 plotMesh = function(mesh, scale=1.5){
@@ -63,4 +66,3 @@ plotMesh = function(mesh, scale=1.5){
   
   return(g)
 }
-

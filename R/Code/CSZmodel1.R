@@ -11,7 +11,7 @@ dyn.load(dynlib("CSZmodel1"))
 # which earthquake the model is run for
 # Levels: T1 T10 T10R1 T11 T12 T2 T3 T3a T4 T4a T5 T5a T5b T6 T6a T7 T7a T8 T8a T9 T9a
 # takes a while to make T1 okada matrix, can use T3 or T4 for quicker run times.
-earthquake = "T4"
+earthquake = "T1"
 
 
 # load in the subsidence data
@@ -57,11 +57,9 @@ subsidence = dr1$subsidence[dr1$event == earthquake]
 sigma = dr1$Uncertainty[dr1$event == earthquake]
 
 
-
 N = length(subsidence) # number of data points
 K = length(triGeomFull) # number of subfaults
 M = dim(inla_mesh$loc)[1] # number of points in spde mesh
-
 
 
 ## extract the depths of the centers of each subfault
@@ -89,7 +87,7 @@ data = list(depth      = depths,
 # the parameters to optimise
 # I am guessing ar good starting parameters
 parameters = list(x          = rep(-1, M),
-                  log_lambda = log(1/2000),
+                  log_lambda = log(1/10000),
                   mu         = 3,
                   log_kappa  = 2.5,
                   log_tau    = -2.0)
@@ -98,7 +96,7 @@ parameters = list(x          = rep(-1, M),
 ## create the objective function using TMB
 # is random="x"?
 # it was in the lindgren paper
-# it doesnæt work with random="x"
+# it doesn't work with random="x"
 obj = MakeADFun(data, parameters, random="x", DLL="CSZmodel1")
 
 
@@ -120,8 +118,8 @@ opt = optim(obj$par, obj$fn, obj$gr, method="L-BFGS-B", lower=L, upper=U)
 
 n = length(opt$par)
 # need taper function
-taper = function(depth, lambda=exp(opt$par[[n-3]]), dmax=30000){
-  return(1 - exp(lambda*(depth - dmax)))
+taper = function(depth, lambda=exp(opt$par[[n-3]])){
+  return(exp(-lambda*depth))
 }
 
 s = rep(0, K)

@@ -13,6 +13,7 @@ Type objective_function<Type>::operator() ()
   DATA_VECTOR(sigma); // standard deviation of errors
   DATA_MATRIX(okada);
   DATA_IVECTOR(spde_idx); // be careful that it is set up correctly, sparse vs dense
+  //DATA_SMATRIX(A);
   DATA_STRUCT(spde, spde_t); // Mesh for basis functions, spde_t is the class
   
   // parameters with domain over entire real down
@@ -47,7 +48,10 @@ Type objective_function<Type>::operator() ()
     untaperedSlips(i) = exp(mu + (x(spde_idx(i)) / tau));
   }
   
-  vector<Type> taper = 1.0 - exp(lambda*(depth-30000.0)); // 1.0 to make it a float
+  // trying out the projection matrix method
+  //vector<Type> untaperedSlips = exp(mu + A*(x/tau))
+  
+  vector<Type> taper = exp(-lambda*depth); // 1.0 to make it a float
   vector<Type> taperedSlips = taper*untaperedSlips;
   //vector<Type> taperedSlips = untaperedSlips;
   
