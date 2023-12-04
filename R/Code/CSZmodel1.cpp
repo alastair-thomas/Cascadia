@@ -37,7 +37,6 @@ Type objective_function<Type>::operator() ()
   // spde model for the spatial field
   // already negative and on the log scale
   Type nll1 = GMRF(Q)(x);
-
   
   vector<Type> untaperedSlips(spde_idx.size());
   untaperedSlips.setZero();
@@ -72,10 +71,20 @@ Type objective_function<Type>::operator() ()
   // Then I need to sort out the tau
   // I don't know how to do this.
   
-  //double nu = 1.0;            // nu = alpha-d/2 = 2-1 by eqn (2) in Lindgren 
-  //Type rho = sqrt(8.0*nu)/kappa;  // Distance at which correlation has dropped to 0.1 (p.  4 in Lindgren)
-  //ADREPORT(rho);
-  // Add a report for the Q matrix so I can use it in the R code.
+  double nu = 1.0;            // nu = alpha-d/2 = 2-1 by eqn (2) in Lindgren 
+  Type rho = sqrt(8.0*nu)/kappa;  // Distance at which correlation has dropped to 0.1 (p.  4 in Lindgren)
+  
+  // report values for testing
+  REPORT(nll1);            // the negative log likehood from the SPDE approximation
+  REPORT(untaperedSlips);  // untapered slips = exp(mu + Ax)
+  REPORT(taperedSlips);    // tapered slips   = t * untaperedslips
+  REPORT(okadaSubsidence); // okada subsidence = Gs
+  REPORT(ll2);             // The log likelihood from the sum of normals
+  REPORT(nll);             // nll1 - ll2
+  
+  // report values needed for more analysis
+  REPORT(Q);
+  ADREPORT(rho);
     
   return nll;
 }

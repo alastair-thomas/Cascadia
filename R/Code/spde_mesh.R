@@ -23,23 +23,28 @@ for (i in 1:K){
 # This should use the midpoint of our subfaults
 locations = cbind(x, y)
 
-concaveHull = concaveman(locations)
+# get projected coordinates
+xy = projCSZ(locations, units="km")
+
+concaveHull = concaveman(xy)
 
 concaveInt = inla.mesh.segment(concaveHull, is.bnd=FALSE)
+
 # make sure concaveInt is in a format expected by inla.mesh.2d
 concaveInt$idx = rbind(concaveInt$idx, c(nrow(concaveInt$loc), 1))
 concaveInt$idx = matrix(as.integer(concaveInt$idx), ncol=2)
 concaveInt$grp = matrix(rep(as.integer(1), nrow(concaveInt$loc)), ncol=1)
-concaveInt$loc = matrix(concaveInt$loc, ncol=2)
+concaveInt$loc = matrix(concaveInt$loc[,1:2], ncol=2) # I changed this line slightly
 concaveInt$loc = concaveInt$loc[nrow(concaveInt$loc):1, ]
 
-hullExt = inla.nonconvex.hull.basic(locations, resolution=150, convex=-.4)
+hullExt = inla.nonconvex.hull.basic(xy, resolution=150, convex=-.4)
 
 # construct mesh with INLA
 inla_mesh = inla.mesh.2d(n=2000,
-                         loc=locations,
+                         loc=xy,
                          boundary=list(concaveInt, hullExt),
-                         cutoff = 0.01)
+                         max.edge=c(15, 1000), # larger max edge for outerior
+                         cutoff = 3)
 
 # plot inla mesh object to check it looks okay.
 plot(inla_mesh)
@@ -50,7 +55,7 @@ plot(inla_mesh)
 inla_spde = inla.spde2.matern(inla_mesh, alpha=2)
 
 # create the projection matrix
-A = inla.spde.make.A(inla_mesh, loc = locations)
+A = inla.spde.make.A(inla_mesh, loc = xy)
 
 # save
 setwd("~/Uni/NTNU/Masters Project/CSZ/R/Data/SPDE")

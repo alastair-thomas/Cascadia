@@ -75,6 +75,10 @@ for (i in 1:K){
 # copied from lindgren example
 spde = inla_spde$param.inla[c("M0","M1","M2")]
 
+print(range(depths))
+print(range(subsidence))
+print(range(sigma))
+
 # set up the data list
 data = list(depth      = depths,
             subsidence = subsidence,
@@ -86,7 +90,7 @@ data = list(depth      = depths,
 
 # the parameters to optimise
 # I am guessing ar good starting parameters
-parameters = list(x          = rep(-1, M),
+parameters = list(x          = rep(0, M),
                   log_lambda = log(1/10000),
                   mu         = 3,
                   log_kappa  = 2.5,

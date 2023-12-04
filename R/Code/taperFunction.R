@@ -35,7 +35,7 @@ fig = plot_ly(data, x = ~depth)
 #fig = fig %>% add_trace(y = ~y1, name = 'Old', type="scatter", mode = 'lines')
 fig = fig %>% add_trace(y = ~y2, name = '1 - exp(lambda*(depth - 30000))', type="scatter", mode = 'lines')
 fig = fig %>% add_trace(y = ~y3, name = 'exp(-lambda*depth)', type="scatter", mode = 'lines')
-fig = fig %>% layout(title = "Example Taper Functions: Lambda=1/2000",
+fig = fig %>% layout(title = "Example Taper Functions",
                       xaxis = list(title = "Depth (m)"),
                       yaxis = list (title = "Taper"))
 fig

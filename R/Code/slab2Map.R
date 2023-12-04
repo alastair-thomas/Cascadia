@@ -31,12 +31,15 @@ plotGrid = function(varName = "depth", projection="NULL"){
   # limit the depth
   if (varName == "depth"){
     grid = grid[grid$z > -30,]
+    grid$z = as.numeric(-grid$z)
   }
+  
+  grid$Discrete <- cut(z, seq(0,30000,1000), include.lowest=T)
   
   g = g +
     geom_sf(data=grid, aes(color=z)) +
     #geom_sf(data=grid, aes(color=z), stat="contour_filled") +
-    #scale_fill_distiller(palette = "OrRd", direction=1, name = "Depth (km)") +
+    scale_colour_brewer(palette = "RdBu", name = "Depth (km)") +
     theme(legend.position = "right", legend.key.height = unit(3, 'cm'))
 
   # set the map in the correct projection
