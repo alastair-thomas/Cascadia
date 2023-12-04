@@ -367,7 +367,7 @@ calcGeom = function(subfault) {
 # to a surface deformation.
 # See Okada 1985 [Okada85]_, or Okada 1992, Bull. Seism. Soc. Am.
 # 
-# okadamap function riginally written in Python by Dave George for
+# okadamap function originally written in Python by Dave George for
 # Clawpack 4.6 okada.py routine, with some routines adapted
 # from fortran routines written by Xiaoming Wang.
 # 
@@ -385,6 +385,7 @@ calcGeom = function(subfault) {
 # x, y: x, y coordinates of locations at which to calculate surface deformation
 # slip: a vector of coseismic slips, 1 for each subfault
 # rake: a vector of rakes, 1 for each subfault
+
 okadaTri = function(fault, x, y, 
                     slip=rep(1, length(fault)), 
                     rake=rep(90, length(fault))) {
@@ -404,6 +405,7 @@ okadaTri = function(fault, x, y,
   
   # get topographic deformations for all subfaults
   allTopos = lapply(fault, okadaSubfaultTri, x=x, y=y)
+  
   
   # now add them together
   dtopo = allTopos[[1]]
@@ -449,30 +451,19 @@ okadaSubfaultTri = function(subfault, x, y) {
   
   # compute burgers vector
   slipv = get_unit_slip_vector(subfault) 
-  # browser() # check slipv
+  
+  # This is the line the actual slip is used
   burgersv = slipv * subfault$slip
   
+  
   # get beta angles
-  # out = self._get_leg_angles()
-  out = get_leg_angles(subfault)
+  out = get_leg_angles(subfault) # no slip dependency
   reverse_list = out$reverse_list
   O1_list = out$O1_list
   O2_list = out$O2_list
   alpha_list = out$alpha_list
   beta_list = out$beta_list
   
-  #
-  # v11 = numpy.zeros(X1.shape)
-  # v21 = numpy.zeros(X1.shape)
-  # v31 = numpy.zeros(X1.shape)
-  # 
-  # v12 = numpy.zeros(X1.shape)
-  # v22 = numpy.zeros(X1.shape)
-  # v32 = numpy.zeros(X1.shape)
-  # 
-  # v13 = numpy.zeros(X1.shape)
-  # v23 = numpy.zeros(X1.shape)
-  # v33 = numpy.zeros(X1.shape)
   dims = dim(X1)
   v11 = matrix(0, nrow=dims[1], ncol=dims[2])
   v21 = matrix(0, nrow=dims[1], ncol=dims[2])
@@ -486,24 +477,16 @@ okadaSubfaultTri = function(subfault, x, y) {
   v23 = matrix(0, nrow=dims[1], ncol=dims[2])
   v33 = matrix(0, nrow=dims[1], ncol=dims[2])
   
-  # for(j in range(6)) {
   for(j in 0:5) {
-    # k = j%3
     k = (j%%3)+1
     alpha = alpha_list[[k]]
     beta = beta_list[[k]]
     
     if (floor(j/3) == 0) {
-      # Olong = O1_list[k][0]
-      # Olat = O1_list[k][1]
-      # Odepth = abs(O1_list[k][2])
       Olong = O1_list[[k]][1]
       Olat = O1_list[[k]][2]
       Odepth = abs(O1_list[[k]][3])
     } else if (floor(j/3) == 1) {
-      # Olong = O2_list[k][0]
-      # Olat = O2_list[k][1]
-      # Odepth = abs(O2_list[k][2])
       Olong = O2_list[[k]][1]
       Olat = O2_list[[k]][2]
       Odepth = abs(O2_list[[k]][3])
@@ -520,7 +503,8 @@ okadaSubfaultTri = function(subfault, x, y) {
       sgn = -1 * sgn
     }
     
-    out = get_halfspace_coords(subfault, X1,X2,X3,alpha,beta,Olong,Olat,Odepth)
+    # no slip dependency here
+    out = get_halfspace_coords(subfault,X1,X2,X3,alpha,beta,Olong,Olat,Odepth)
     Y1 = out$Y1
     Y2 = out$Y2
     Y3 = out$Y3
@@ -534,6 +518,7 @@ okadaSubfaultTri = function(subfault, x, y) {
     Zb2 = out$Zb2
     Zb3 = out$Zb3
     
+    # no slip dependecy here
     out = get_angular_dislocations_surface(subfault, Y1,Y2,Y3,beta,Odepth)
     w11 = out$v11
     w12 = out$v12
@@ -545,10 +530,7 @@ okadaSubfaultTri = function(subfault, x, y) {
     w32 = out$v32
     w33 = out$v33
     
-    if(any(is.na(w11))) {
-      browser()
-    }
-    
+    # no slip dependecy here
     out = coord_transform(subfault, w11,w12,w13,w21,w22,w23,w31,w32,w33,alpha)
     w11 = out$v11
     w12 = out$v12
@@ -560,9 +542,6 @@ okadaSubfaultTri = function(subfault, x, y) {
     w32 = out$v32
     w33 = out$v33
     
-    if(any(is.na(w11))) {
-      browser()
-    }
     
     v11 = v11 + sgn*w11
     v21 = v21 + sgn*w21
@@ -578,9 +557,6 @@ okadaSubfaultTri = function(subfault, x, y) {
   }
   
   # linear combination for each component of Burgers vectors
-  # dX = -v11*burgersv[0] - v12*burgersv[1] + v13*burgersv[2]
-  # dY = -v21*burgersv[0] - v22*burgersv[1] + v23*burgersv[2]
-  # dZ = -v31*burgersv[0] - v32*burgersv[1] + v33*burgersv[2]
   dX = -v11*burgersv[1] - v12*burgersv[2] + v13*burgersv[3]
   dY = -v21*burgersv[1] - v22*burgersv[2] + v23*burgersv[3]
   dZ = -v31*burgersv[1] - v32*burgersv[2] + v33*burgersv[3]
@@ -591,7 +567,9 @@ okadaSubfaultTri = function(subfault, x, y) {
   
   dtopo$dX = dX
   dtopo$dY = dY
-  dtopo$dZ = dZ
+  dtopo$dZ = dZ # [length(X), Length(Y)]
+  
+  # diagonal of dZ is the Okada subsidence at each observed location.
   
   dtopo
 }

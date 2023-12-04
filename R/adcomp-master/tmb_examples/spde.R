@@ -46,7 +46,7 @@ parameters <- list(beta      = opt1$par[1:5],
 
 ## Phase 2: Include spatial part. Use starting values from phase 1
 obj <- MakeADFun(data, parameters, random="x", DLL="spde")
-L   <- c(-7, -1, -1, -1, -1, -3.0, 2.0, log(0.1) )
+L   <- c(-7, -1, -1, -1, -1, -3.0, 2.0, log(0.1))
 U   <- c(-4,  1,  1,  1,  1, -1.0, 3.0, log(10.0))
 opt <- nlminb(obj$par, obj$fn, obj$gr, lower=L, upper=U)
 

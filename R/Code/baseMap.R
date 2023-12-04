@@ -2,6 +2,7 @@
 # gets the border data for the country and required states / provinces
 readCountries = function(){
   
+  setwd("~/Uni/NTNU/Masters Project/CSZ/R")
   # reads in the Canada country data from GADM
   if (file.exists("Data/Canada/gadm/gadm41_CAN_1_pk.rds")){
     canada = readRDS("Data/Canada/gadm/gadm41_CAN_1_pk.rds")
@@ -61,7 +62,7 @@ fromUTM <- function(x){
   
 }
 
-plotBase = function(scale=1){
+plotBase = function(scale=1, labels=TRUE){
   
   # read in the border data
   borders = readCountries()
@@ -71,8 +72,8 @@ plotBase = function(scale=1){
   usBorders = ms_simplify(borders$US, weighting=0.7, keep_shapes=TRUE)
   canUSBorder = ms_simplify(borders$canUSBorder, weighting=0.7, keep_shapes=TRUE)
   
-  placeNames = data.frame(Lon = c(-125.5),
-                           Lat = c(49.7),
+  placeNames = data.frame(Lon = c(-126),
+                           Lat = c(49.9),
                            Place = c("Vancouver Island"))
   placeNames = st_as_sf(x=placeNames, coords = c("Lon", "Lat"), crs=st_crs("EPSG:4326"))
   
@@ -86,17 +87,21 @@ plotBase = function(scale=1){
                              Country=c("Canada", "USA"))
   countryNames = st_as_sf(x=countryNames, coords = c("Lon", "Lat"), crs=st_crs("EPSG:4326"))
   
+  # add land
   g = ggplot() +
-    
-    # add all the layers
       geom_sf(data = usBorders, fill = "white", colour="black") +
       geom_sf(data = canadaBorders, fill = "white", colour="black") +
-      geom_sf(data=canUSBorder, linewidth=scale*0.6, colour="black", linetype=11) +
-      geom_sf_text(data=stateNames, aes(label=State), size=scale*2.5) +
-      geom_sf_text(data=countryNames, aes(label=Country), size=scale*3, hjust=1) +
-      geom_sf_text(data=placeNames, aes(label=Place), size=scale*2, angle=-40) +
+      geom_sf(data=canUSBorder, linewidth=scale*0.6, colour="black", linetype=11)
+  
+  if (labels){
+    g = g +
+        geom_sf_text(data=stateNames, aes(label=State), size=scale*2.5) +
+        geom_sf_text(data=countryNames, aes(label=Country), size=scale*3, hjust=1) +
+        geom_sf_text(data=placeNames, aes(label=Place), size=scale*2, angle=-40)
+  }
       
     # control the appearance
+  g = g +
       theme_bw() +
       theme(panel.background = element_rect('#f0feff')) +
       labs(x = "",

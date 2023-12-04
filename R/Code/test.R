@@ -291,7 +291,7 @@ testFullFault = function() {
   lonTest = seq(lonRange[1], lonRange[2], l=20)
   latTest = seq(latRange[1], latRange[2], l=20)
   
-  browser()
+  #browser()
   
   totTime = system.time(dtopoAll <- okadaTri(triGeomFull, x=lonTest, y=latTest, slip=10))[3]
   # totTime/60
@@ -333,4 +333,63 @@ testFullFault = function() {
   polygon(triGeom$extent, border="purple", lwd=.75)
 }
 
+# returns the geometry of the Cascadia Subduction Zone
+getFaultGeometry = function(){
+  
+  triGeom = discretizeSlab2(method="linear")
+    
+  # convert coordinates back to lon/lat as expected by getFullFaultGeom()
+  for(i in 1:length(triGeom$corners)) {
+    triGeom$corners[[i]][,1:2] = projCSZ(as.matrix(triGeom$corners[[i]][,1:2]), inverse=TRUE, units="km")
+  }
+    
+  triGeomFull = getFullFaultGeom(triangulatedGeom=triGeom)
+  return(triGeomFull)
+}
+
+testSPDEMesh = function(){
+  # Check this gives indexes of x which correspond to locations of data points
+  j = 1
+  lonRes = rep(0, length(inla_mesh$idx$loc))
+  latRes = rep(0, length(inla_mesh$idx$loc))
+  
+  for (i in inla_mesh$idx$loc){
+    print("----------------")
+    print(inla_mesh$loc[i,])
+    print(paste(triGeomFull[[j]]$lon, triGeomFull[[j]]$lat))
+    
+    lonRes[j] = inla_mesh$loc[i,1] - triGeomFull[[j]]$lon
+    lonRes[j] = inla_mesh$loc[i,2] - triGeomFull[[j]]$lat
+    j = j + 1
+  }
+  
+  plot(lonRes)
+  plot(latRes)
+  # Result - it does :)
+}
+
+testTMB = function(data, parameters){
+  compile("CSZmodel1.cpp")
+  dyn.load(dynlib("CSZmodel1"))
+  obj = MakeADFun(data, parameters, DLL="CSZmodel1")
+  
+  print(obj$fn(parameters))
+  print(nll(parameters))
+  
+}
+
+nll = function(data, parameters){
+  
+  x = parameters$x
+  lambda = exp(parameters$log_lambda)
+  dmax = exp(parameters$log_dmax)
+  mu = parameters$mu
+  kappa = exp(parameters$log_kappa)
+  tau = exp(parameters$log_tau)
+  
+  y = data$subsidence
+  sigma = data$sigma
+  
+  
+}
 

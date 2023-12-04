@@ -52,14 +52,16 @@ getFullFaultGeom = function(triangulatedGeom=NULL, n=2000, max.n=-1, max.edge=c(
 
 # loads the Slab 2.0 model output points and depths
 loadSlab2 = function() {
-  slabDir = "Data/Slab2/"
+  # need to change to where slab2 data is stored
+  slabDir = "C://users/alast/OneDrive/Documents/Uni/NTNU/Masters Project/CSZ/R/Data/Slab2/"
   
+  setwd(slabDir)
   # doesn't work/bad depth values due to NAs:
   # slab = read.csv(paste0(slabDir, "cas_slab2_nod_09.04.23.csv"))
   # slab
   
   require(ncdf4)
-  ncdat <- nc_open("Data/Slab2/depth.grd")
+  ncdat <- nc_open("depth.grd")
   depth = ncvar_get(ncdat, "z")
   lon = ncvar_get(ncdat, "x")
   lat = ncvar_get(ncdat, "y")
@@ -68,17 +70,19 @@ loadSlab2 = function() {
   allLons = rep(lon, length(lat))
   allDepths = c(depth)
   
-  ncdat <- nc_open("Data/Slab2/dip.grd")
+  ncdat <- nc_open("dip.grd")
   dip = ncvar_get(ncdat, "z")
   allDips = c(dip)
   
-  ncdat <- nc_open("Data/Slab2/strike.grd")
+  ncdat <- nc_open("strike.grd")
   strike = ncvar_get(ncdat, "z")
   allStrikes = c(strike)
   
   out = data.frame(list(lon=allLons, lat=allLats, depth=allDepths, dip=allDips, strike=allStrikes))
   
   extentI = is.finite(allDepths)
+  
+  setwd("C://users/alast/OneDrive/Documents/Uni/NTNU/Masters Project/CSZ/R/Code")
   
   out[extentI,]
 }
@@ -130,8 +134,8 @@ discretizeSlab2 = function(n=2000, max.n=-1, max.edge=c(15, 100), maxDepth=30,
   
   concaveHull = concaveman(xy)
   
-  plot(xy, pch=".", asp=1)
-  polygon(concaveHull, border="blue")
+  #plot(xy, pch=".", asp=1)
+  #polygon(concaveHull, border="blue")
   
   concaveInt = inla.mesh.segment(concaveHull, is.bnd=FALSE)
   # make sure concaveInt is in a format expected by inla.mesh.2d
@@ -172,7 +176,7 @@ discretizeSlab2 = function(n=2000, max.n=-1, max.edge=c(15, 100), maxDepth=30,
                               method=method)
   
   
-  c(faultGeom, list(extent=concaveHull, maxDepth=maxDepth))
+  return(list(mesh=mesh, geom=faultGeom, extent=concaveHull, maxDepth=maxDepth))
 }
 
 # given a triangulated mesh constructed from discretizeSlab2, constructs 

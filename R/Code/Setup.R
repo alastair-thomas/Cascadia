@@ -42,6 +42,7 @@ if(FALSE) {
   install.packages("metR")
   install.packages("TMB")
   install.packages("stars")
+  install.packages("rSPDE")
 }
 
 # load required packages and R scripts
@@ -85,6 +86,7 @@ library(rmapshaper)
 library(metR)
 library(TMB)
 library(stars)
+library(rSPDE)
 
 #inf = sessionInfo()
 #if(inf$platform == "x86_64-apple-darwin17.0 (64-bit)") {
@@ -107,7 +109,7 @@ library(stars)
 
 options(warn=1)
 
-setwd("C://Users/alast/OneDrive/Documents/Uni/NTNU/Masters Project/CSZ/R")
+setwd("~/Uni/NTNU/Masters Project/CSZ/R/Code")
 source("Code/loadSubDat.R")
 source("Code/slab.R")
 source("Code/okada.R")

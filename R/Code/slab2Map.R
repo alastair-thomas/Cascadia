@@ -22,7 +22,7 @@ readGrid = function(varName){
 }
 
 
-plotGrid <- function(varName = "depth", projection="NULL"){
+plotGrid = function(varName = "depth", projection="NULL"){
   # gets the base map in given projection
   g = plotBase(scale=2)
   
@@ -34,7 +34,8 @@ plotGrid <- function(varName = "depth", projection="NULL"){
   }
   
   g = g +
-    geom_sf(data=grid, aes(color=z), stat="contour_filled") +
+    geom_sf(data=grid, aes(color=z)) +
+    #geom_sf(data=grid, aes(color=z), stat="contour_filled") +
     scale_fill_distiller(palette = "OrRd", direction=1, name = "Depth (km)") +
     theme(legend.position = "right", legend.key.height = unit(3, 'cm'))
 
@@ -52,7 +53,7 @@ plotGrid <- function(varName = "depth", projection="NULL"){
     g = g + coord_sf(xlim = -c(130, 120), ylim = c(40, 50), crs=st_crs("EPSG:4326"))
   }
   
-  g
+  return(g)
 }
 
 #plotGridGG("depth", "Depth (km)", 50)

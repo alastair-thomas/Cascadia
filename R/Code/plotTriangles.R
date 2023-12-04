@@ -39,6 +39,10 @@ meshPlot <- function(){
           legend.key.height = unit(3, 'cm'))
 }
 
-faultGeom = discretizeSlab2()
+
+
+fault = getFaultGeometry()
+
+
 
 
