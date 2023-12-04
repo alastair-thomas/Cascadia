@@ -33,6 +33,28 @@ My masters project. Creating a spatial distribution of coseismic slip along the 
 ### Week 41
 - Testing Okada model for an entire fault
 - Rectangle into two triangles to compare to planar, dx, dy, dz
-### Week 42 - 49
+### Week 42
 - Spatial Statistics modelling!
-
+### Week 43
+- Write up the maths for Negative Log Likelihood
+- Think about Okada part of the math
+- Begin on coding
+### Week 44
+- Continue SPDE coding
+- Construct mesh
+- Make Okada matricies, maybe block diagonal
+### Week 45
+- Continue coding
+- Debugging
+### Week 46
+- Fit the model
+- Debug
+- Check results
+### Week 47
+- Write up
+### Week 48
+- More writing
+### Week 49
+- More writing
+### Week 50
+- Finish writing things from the first semester!
