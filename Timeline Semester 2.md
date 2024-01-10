@@ -1,6 +1,6 @@
-# Sprint 2024 Semester Timeline
+# Spring 2024 Semester Timeline
 
-Here is the timeline, to get the masters thesis finished by June 1st (Actually 3rd I think).
+Here is the timeline, to get the masters thesis finished by June 1st (Technically the 3rd but I will be done by the 1st).
 
 ## Week 2
 - Get results using simple mesh
