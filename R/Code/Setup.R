@@ -118,10 +118,12 @@ setwd("~/Uni/NTNU/Masters Project/CSZ/R/Code")
 #source("Code/loadSubDat.R")
 source("Code/slab.R")
 source("Code/okada.R")
+source("okadaMatrix.R")
 source("Code/plotter.R")
 source("Code/genericSpatialPlottingFunctions.R")
 source("Code/utilityFuns.R")
 source("Code/slab2map.R")
+source("subsidenceMap.R")
 source("code/baseMap.R")
 
 ## load in global variables made from the following script: 

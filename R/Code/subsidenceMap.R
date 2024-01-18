@@ -1,7 +1,4 @@
 
-setwd("C://users/alast/OneDrive/Documents/Uni/NTNU/Masters Project/CSZ/R")
-load("Data/Subsidence/DR1.RData")
-dr1$Site = sub("Port Al berni", "Port Alberni", dr1$Site)
   
 Mode = function(x) {
   ux = unique(x)
@@ -11,6 +8,10 @@ Mode = function(x) {
 
 plotSubsidence = function(scale=2){
   # gets the base map of the CSZ
+  setwd("C://users/alast/OneDrive/Documents/Uni/NTNU/Masters Project/CSZ/R")
+  load("Data/Subsidence/DR1.RData")
+  dr1$Site = sub("Port Al berni", "Port Alberni", dr1$Site)
+  
   g = plotBase(scale=scale)
   
   Sites = data.frame(Site=dr1$Site, Lat=dr1$Lat, Lon=dr1$Lon, Sub=dr1$subsidence, Unc=dr1$Uncertainty)
