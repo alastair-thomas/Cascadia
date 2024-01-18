@@ -10,7 +10,7 @@ Type objective_function<Type>::operator() ()
   
   DATA_VECTOR(depth); // depths of centroids of subfaults
   DATA_VECTOR(subsidence); // subsidence data
-  DATA_VECTOR(sigma); // standard deviation of errors
+  DATA_VECTOR(V); // standard deviation of errors
   DATA_MATRIX(okada); // Okada matrix
   DATA_IVECTOR(spde_idx); // spde index's. Saved as an index vector
   DATA_STRUCT(spde, spde_t); // Mesh for basis functions, spde_t is the class
@@ -51,7 +51,7 @@ Type objective_function<Type>::operator() ()
   vector<Type> okadaSubsidence = okada * taperedSlips;
   
   // use n normal densities and sum up.
-  Type ll2 = sum(dnorm(subsidence, okadaSubsidence, sigma, true));
+  Type ll2 = sum(dnorm(subsidence, okadaSubsidence, V, true));
   
   // final nll is the product of p(x|theta) p(y|x, theta).
   // calculate negative log likelihood
@@ -61,6 +61,9 @@ Type objective_function<Type>::operator() ()
   double nu = 1.0;            // nu = alpha-d/2 = 2-1 by eqn (2) in Lindgren 
   Type rho = sqrt(8.0*nu)/kappa;  // Distance at which correlation has dropped to 0.1 (p.  4 in Lindgren)
   
+  Type a = 4.0 + kappa*kappa;
+  Type sigmaSquared = 1.0 / (4.0*3.14*nu*(a - 4.0));
+    
   // report values needed for more analysis
   REPORT(Q);
   // For testing purposes
@@ -74,6 +77,7 @@ Type objective_function<Type>::operator() ()
   REPORT(x);               // the unscaled distribution.
   
   ADREPORT(rho);
+  ADREPORT(sigmaSquared);
   
   return nll;
   

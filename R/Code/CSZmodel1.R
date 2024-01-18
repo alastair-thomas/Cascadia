@@ -52,7 +52,7 @@ setwd("~/Uni/NTNU/Masters Project/CSZ/R/Code")
 # Note change sign to minus since Okada model gives negative values for downwards movements.
 subsidence = -DR3$subsidence[DR3$event == earthquake]
 # I assume that these are the sigma values to be used?
-sigma = DR3$Uncertainty[DR3$event == earthquake]
+V = DR3$Uncertainty[DR3$event == earthquake]
 
 
 N = length(subsidence) # number of data points
@@ -77,7 +77,7 @@ spde = inla_spde$param.inla[c("M0","M1","M2")]
 # set up the data list
 data = list(depth      = depths,
             subsidence = subsidence,
-            sigma      = sigma,
+            V          = V,
             okada      = as.matrix(G),
             spde_idx   = inla_mesh$idx$loc - 1, # -1 because c++ starts array indexes at 0.
             spde       = spde)
@@ -163,6 +163,7 @@ SD0 = TMB::sdreport(obj, getJointPrecision=TRUE,
                     bias.correct = TRUE,
                     bias.correct.control = list(sd = TRUE))
 
+summary(SD0, "report")
 
 # here I should check that I get a PD covariance structure
 print(is.positive.definite(as.matrix(SD0$jointPrecision)))
@@ -182,7 +183,9 @@ rmvnorm_prec = function(mu, chol_prec, nSims) {
 mu = c(SD0$par.fixed, SD0$par.random)
 nSims = 1000
 L = Cholesky(SD0[['jointPrecision']], super = T)
-draws = rmvnorm_prec(mu = mu , chol_prec = L, nSims = nSims)
+draws = rmvnorm_prec(mu = mu ,
+                     chol_prec = L,
+                     nSims = nSims)
 
 ## summarize the draws
 parnames = c(names(SD0[['par.fixed']]), names(SD0[['par.random']]))
@@ -193,7 +196,7 @@ logTauDraws = draws[parnames == 'log_tau',]
 xDraws = draws[parnames == 'x',]
 
 # Now I get the distributional results for the parameters
-# Histograms - DONE
+# Histograms
 # Median + SD
 # 95% Prediction Interval
 
@@ -206,7 +209,7 @@ draws = as.data.frame(pivot_longer(draws, cols = everything(), names_to = "Param
 
 # Create a 2x2 grid of histograms
 # cairo_pdf used so that the greek symbols are saved nicely
-g = ggplot(draws, aes(x = Value, fill=Parameter)) +
+g4 = ggplot(draws, aes(x = Value, fill=Parameter)) +
   geom_histogram(bins=30, position = "identity", alpha = 0.8) +
   facet_wrap(~Parameter,
              scales = "free",
@@ -218,10 +221,10 @@ g = ggplot(draws, aes(x = Value, fill=Parameter)) +
   xlab("Parameter Value") +
   ylab("Count")
 
-plot(g)
+plot(g4)
 # With Cairo
-ggsave(g, filename = "Parameter Hists.pdf", 
-       device = cairo_pdf, width=9, height=9)
+#ggsave(g, filename = "Parameter Hists.pdf", 
+#       device = cairo_pdf, width=9, height=9)
 
 draws = data.frame(logLamda = logLambdaDraws,
                    Mu = muDraws,
@@ -234,14 +237,30 @@ parSum = cbind(mean=(apply(draws, 2, mean)),
                lower = (apply(draws, 2, quantile, .05)),
                upper = (apply(draws, 2, quantile, .95)))
 
+print(parSum)
 
-# create the slip draws
+# visualise the x draws and their standard devaitions
+# check underlying spatial field
+
+xSum = cbind(mean   = (apply(xDraws, 1, mean)),
+             median = (apply(xDraws, 1, median)),
+             sd     = (apply(xDraws, 1, sd)))
+
+g5 = plotFault(simpleFault, z=xSum[inla_mesh$idx$loc,1], legendTitle="Normalized\nlog slips Mean")
+plot(g5)
+
+g6 = plotFault(simpleFault, z=xSum[inla_mesh$idx$loc,3], legendTitle="Normalized\nlog slips SD")
+plot(g6)
+
+## create the slip draws
 slipDraws = matrix(data=0, nrow=K, ncol=nSims)
 
-# loop and do all simulations for each subfault
+## loop and do all simulations for each subfault
 for (i in 1:K){
   taper = exp(-exp(logLambdaDraws) * depths[i]) # singular value
+  #print(length(taper))
   idx = inla_mesh$idx$loc[i] # also singular value
+  #print(idx)
   slipDraws[i,] = taper * exp(muDraws + xDraws[idx,]) # I need to simulate each mu
 }
 
@@ -252,17 +271,19 @@ slipSum = cbind(mean = (apply(slipDraws, 1, mean)),
                 lower = (apply(slipDraws, 1, quantile, .05)),
                 upper = (apply(slipDraws, 1, quantile, .95)))
 
+print(slipSum)
+
 # plot the posterior mean slip
-g4 = plotFault(simpleFault, z=slipSum[,1], legendTitle="Mean\nPosterior Slip (m)")
-plot(g4)
+g7 = plotFault(simpleFault, z=slipSum[,1], legendTitle="Mean\nPosterior Slip (m)")
+plot(g7)
 
 # plot the posterior median slip
-g5 = plotFault(simpleFault, z=slipSum[,2], legendTitle="Median\nPosterior Slip (m)")
-plot(g5)
+g8 = plotFault(simpleFault, z=slipSum[,2], legendTitle="Median\nPosterior Slip (m)")
+plot(g8)
 
 # plot the posterior slip standard deviation
-g6 = plotFault(simpleFault, z=slipSum[,3], legendTitle="Stanadard Deviation\nPosterior Slip (m)")
-plot(g6)
+g9 = plotFault(simpleFault, z=slipSum[,3], legendTitle="Stanadard Deviation\nPosterior Slip (m)")
+plot(g9)
 
 
 # now calculate subsidences for each data point
@@ -293,8 +314,8 @@ plotErrors = function(error, signError, scale=2){
   return(g)
 }
 
-g7 = plotErrors(absError, signError)
-plot(g7)
+g10 = plotErrors(absError, signError)
+plot(g10)
 
 print(paste("Count of wrong sign: ", N - sum(signError)))
 
@@ -332,12 +353,12 @@ subDF = data.frame(Lon=lonLat$x,
                    Lat=lonLat$y,
                    Sub=subWholeFault)
 
-g8 = plotBase(scale=2, labels=FALSE, countryBoundary=FALSE)
-g8 = g8 +
+g11 = plotBase(scale=2, labels=FALSE, countryBoundary=FALSE)
+g11 = g11 +
   geom_raster(data=subDF, aes(x=Lon, y=Lat, fill=Sub), alpha=0.75) +
   scale_fill_gradientn(colours=c("red", "white", "blue"), name = "Vertical\nDisplacement (m)",
                        values=scales::rescale(c(min(subDF$Sub), 0, max(subDF$Sub)))) +
   theme(legend.position = "right", legend.key.height = unit(3, 'cm')) +
   coord_sf(xlim=-c(128, 122), ylim=c(40, 50))
-plot(g8)
+plot(g11)
 
