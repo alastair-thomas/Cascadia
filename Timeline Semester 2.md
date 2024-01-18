@@ -9,8 +9,8 @@ Here is the timeline, to get the masters thesis finished by June 1st (Technicall
 - Write up everything so far
 
 ## Week 4
-- Get results using finer mesh: will need to use NTNU faster servers.
-- Change write up to the finer mesh results.
+- Change to bayesian methodology
+- Make sure I can get results
 
 ## Week 5
 - Find and add in more data sources
@@ -18,10 +18,10 @@ Here is the timeline, to get the masters thesis finished by June 1st (Technicall
 - Add these data sources and results into the writing.
 
 ## Week 6
-- Change to a Bayesian methodology
+- Change to a finer grid meshØ use NTNU fast servers
 
 ## Week 7
-- Write up Bayesian stuff
+- Write up all the new stuff
 
 ## Week 8
 After this I start to think about adding in more than one earthquake.
