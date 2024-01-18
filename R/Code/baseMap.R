@@ -62,7 +62,7 @@ fromUTM <- function(x){
   
 }
 
-plotBase = function(scale=1, labels=TRUE){
+plotBase = function(scale=1, labels=TRUE, countryBoundary=TRUE){
   
   # read in the border data
   borders = readCountries()
@@ -90,9 +90,15 @@ plotBase = function(scale=1, labels=TRUE){
   # add land
   g = ggplot() +
       geom_sf(data = usBorders, fill = "white", colour="black") +
-      geom_sf(data = canadaBorders, fill = "white", colour="black") +
-      geom_sf(data=canUSBorder, linewidth=scale*0.6, colour="black", linetype=11)
+      geom_sf(data = canadaBorders, fill = "white", colour="black")
   
+  # if the boundary boudnary line is wanted
+  if (countryBoundary==TRUE){
+    g = g+
+      geom_sf(data=canUSBorder, linewidth=scale*0.6, colour="black", linetype=11)
+  }
+  
+  # if the labels are wanted
   if (labels){
     g = g +
         geom_sf_text(data=stateNames, aes(label=State), size=scale*2.5) +

@@ -23,7 +23,6 @@ getUnitMatrix = function(fault, x, y,
 getOkada = function(geom, lon, lat, earthquake){
   allTopos = getUnitMatrix(geom, x=lon, y=lat)
   
-  
   # allTopos[[i]]$dZ in an NxN matrix which gives the effect of the ith subfault
   # on each of the locations in a mesh of lon, lat
   # Extracting diagonal gives for the pairs of (lon, lat) gives.
@@ -50,4 +49,9 @@ getOkada = function(geom, lon, lat, earthquake){
   return(G)
 }
 
+testOkadaSign = function(fault, lon, lat){
+  dtopo = okadaTri(fault, lon, lat, slip=rep(1, length(fault)))
+  
+  return(dtopo)
+}
 

@@ -333,20 +333,6 @@ testFullFault = function() {
   polygon(triGeom$extent, border="purple", lwd=.75)
 }
 
-# returns the geometry of the Cascadia Subduction Zone
-getFaultGeometry = function(){
-  
-  triGeom = discretizeSlab2(method="linear")
-    
-  # convert coordinates back to lon/lat as expected by getFullFaultGeom()
-  for(i in 1:length(triGeom$corners)) {
-    triGeom$corners[[i]][,1:2] = projCSZ(as.matrix(triGeom$corners[[i]][,1:2]), inverse=TRUE, units="km")
-  }
-    
-  triGeomFull = getFullFaultGeom(triangulatedGeom=triGeom)
-  return(triGeomFull)
-}
-
 testSPDEMesh = function(){
   # Check this gives indexes of x which correspond to locations of data points
   j = 1

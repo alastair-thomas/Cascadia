@@ -1,3 +1,58 @@
+
+# script to plot the slab geometry
+# fault is the output of getFullFaultGeom
+
+plotFault = function(fault, z=c(NA), scale=1.5, fillZ=TRUE, legendTitle=""){
+  g = plotBase(scale=scale, labels=FALSE)
+  
+  nsf = length(fault)
+  
+  if (any(is.na(z))){
+    z = rep(0, nsf)
+  }
+  
+  ids = factor(1:nsf)
+  
+  lons = rep(0, 3*nsf)
+  lats = rep(0, 3*nsf)
+  
+  for (i in 1:nsf){
+    lons[(((i-1)*3)+1):((i*3))] = fault[[i]]$corners[,1]
+    lats[(((i-1)*3)+1):((i*3))] = fault[[i]]$corners[,2]
+  }
+  
+  values = data.frame(
+    id = ids,
+    z=z
+  )
+  
+  positions = data.frame(
+    id = rep(ids, each = 3),
+    x = lons,
+    y = lats
+  )
+  
+  # merge together
+  datapoly = merge(values, positions, by = c("id"))
+  
+  if (fillZ){
+    g = g +
+      geom_polygon(data=datapoly, aes(x=x, y=y, fill = z, group = id), alpha=0.8, color="white", linewidth=0.15) +
+      scale_fill_gradient(low="green", high="red", guide = guide_colorbar(reverse = TRUE)) +
+      theme(legend.position="right", legend.key.height = unit(3, 'cm')) +
+      labs(fill=legendTitle)
+  } else{
+    g = g +
+      geom_polygon(data=datapoly, aes(x=x, y=y, group=id), color="#D35400", fill=NA, linewidth=0.15)
+  }
+  
+  g = g +
+    coord_sf(xlim=-c(128.5, 122), ylim=c(39.8, 50.2))
+  
+  return(g)
+}
+
+
 # script for loading and discretizing Slab 2.0 data
 
 # Construct the full triangulated geometry of the fault for use in the Okada 
@@ -11,43 +66,64 @@
 # max.edge: maximum triangle edge length in km (for making triangle regular)
 # maxDepth: maximum depth of the fault geometry
 # ...: other inputs passed to inla.mesh.2d
-getFullFaultGeom = function(triangulatedGeom=NULL, n=2000, max.n=-1, max.edge=c(15, 100), 
+getFullFaultGeom = function(triangulatedGeom=NULL, n=2000, max.n=-1, max.edge=c(15, 1000), cutoff=3, 
                             maxDepth=30, ...) {
   
   # construct the triangulated geometry if need be
   if(is.null(triangulatedGeom)) {
-    triangulatedGeom = discretizeSlab2(n=n, max.n=max.n, max.edge=max.edge, 
+    discr = discretizeSlab2(n=n, max.n=max.n, max.edge=max.edge, cutoff=cutoff, 
                                        maxDepth=maxDepth, ...)
     
-    # convert coordinates back to lon/lat. Only corners is used
-    for(i in 1:length(triangulatedGeom$corners)) {
+    triangulatedGeom = discr$geom
+    
+    boundary = discr$extent
+    
+    # find the number of subfaults
+    nSubFaults = length(triangulatedGeom$corners)
+    
+    # convert all coordinates back to lon/lat.
+    for(i in 1:nSubFaults) {
       triangulatedGeom$corners[[i]][,1:2] = projCSZ(as.matrix(triangulatedGeom$corners[[i]][,1:2]), inverse=TRUE, units="km")
+      triangulatedGeom$centers[[i]][,1:2] = projCSZ(as.matrix(triangulatedGeom$centers[[i]][,1:2]), inverse=TRUE, units="km")
     }
   }
+  
   cornerList = triangulatedGeom$corners
+  centerList = triangulatedGeom$centers
   
   # now convert to the format used by okadaTri
   faultGeom = list()
-  # browser()
-  for(i in 1:length(cornerList)) {
+  
+  # loop over each subfault
+  for(i in 1:nSubFaults) {
+    
+    # get a 3x3 matrix, each row is a subfault corner with lon, lat, depth
     thisCorners = as.matrix(cornerList[[i]])
-    thisCorners[,3] = thisCorners[,3]*10^3 # km to m
+    thisCorners[,3] = thisCorners[,3]*(10^3) # depth from km to m
+    
+    thisCenter = centerList[[i]]
+    thisCenter[3] = thisCenter[3]*(10^3)
     
     # calculate the geometry of the subfault
     triGeom = calculate_geometry_triangles(cbind(projCSZ(thisCorners[,1:2], units="m"), thisCorners[,3]))
     
-    # reset to unprojected coordinates as expect by okadaTri
+    # reset already known values
     triGeom$corners = thisCorners
-    lonLat = projCSZ(cbind(triGeom$lon, triGeom$lat), inverse=TRUE, units="m")
-    triGeom$lon = lonLat[1]
-    triGeom$lat = lonLat[2]
+    
+    # I changed this to already calculated centers
+    # not sure if should use output from calculate_geometry_triangles
+    # lon, lat are the same but depth slightly different
+    
+    triGeom$lon = as.numeric(thisCenter[1])
+    triGeom$lat = as.numeric(thisCenter[2])
+    triGeom$depth = as.numeric(thisCenter[3])
     
     # append to list of subfaults
     faultGeom = c(faultGeom, list(triGeom))
   }
   
   # return results
-  faultGeom
+  return(faultGeom)
 }
 
 # loads the Slab 2.0 model output points and depths
@@ -103,22 +179,17 @@ loadSlab2 = function() {
 # method: either linear, nearest neighbor, r Gaussian kernel smoother 
 #         interpolation of the fault geometry. Defaults to linear
 # ...: other inputs passed to inla.mesh.2d
-discretizeSlab2 = function(n=2000, max.n=-1, max.edge=c(15, 100), maxDepth=30, 
+discretizeSlab2 = function(n=2000, max.n=-1, max.edge=c(15, 1000), maxDepth=30, 
                            cutoff=3, method=c("linear", "NN", "kernel"), ...) {
   method = match.arg(method)
   
   # first load in the Slab 2.0 geometry
   slab = loadSlab2()
-  lonLat = cbind(slab$lon, slab$lat)
+  lonLat = cbind(slab$lon - 360, slab$lat) # maybe need a -360 here
   depths = slab$depth
   
   # get projected coordinates
-  xy = projCSZ(lonLat)
-  
-  # if(FALSE) {
-  #   plotWithColor(xy[,1], xy[,2], depths, pch=19, cex=.3, xlab="Easting (km)", 
-  #                 ylab="Northing (km)")
-  # }
+  xy = projCSZ(lonLat, units="km")
   
   # keep only points with appropriate depth
   goodI = abs(depths) <= maxDepth
@@ -126,57 +197,52 @@ discretizeSlab2 = function(n=2000, max.n=-1, max.edge=c(15, 100), maxDepth=30,
   xy = xy[goodI,]
   depths = depths[goodI]
   
-  # compute concave hull of slab geometry
-  # hullI = chull(xy)
-  # xyHull = xy[hullI,]
-  
+  # create the interior hull
   require(concaveman)
   
-  concaveHull = concaveman(xy)
+  # the concavity and length_threshold are set at default values.
+  # don't think they need changed.
+  concaveHull = concaveman(xy, concavity=2, length_threshold=0)
   
-  #plot(xy, pch=".", asp=1)
-  #polygon(concaveHull, border="blue")
+  # this sections slightly shrinks the hull
+  # this guarantees that all the points for the subfaults will have a depth
+  # otherwise some depths become NA when depth is interpolated form Slab2
   
-  concaveInt = inla.mesh.segment(concaveHull, is.bnd=FALSE)
+  v = vect(concaveHull, "polygons") # convert to format needed for buffer function
+  v = buffer(v, -0.1) # shrink the hull by 0.1km
+  v = as.points(v) # convert to points
+  concaveHull = crds(v) # get the hull in same format as before
+  
+  #plot(projCSZ(xy, unit="km", inverse=TRUE))
+  #plot(projCSZ(concaveHull, units="km", inverse=TRUE))
+  
+  # testing is.bnd=TRUE since this is a boundary?
+  # The shape being made is boundary points, thus I think is.bnd=TRUE is fine?
+  concaveInt = inla.mesh.segment(concaveHull, is.bnd=TRUE)
+  
   # make sure concaveInt is in a format expected by inla.mesh.2d
   concaveInt$idx = rbind(concaveInt$idx, c(nrow(concaveInt$loc), 1))
   concaveInt$idx = matrix(as.integer(concaveInt$idx), ncol=2)
   concaveInt$grp = matrix(rep(as.integer(1), nrow(concaveInt$loc)), ncol=1)
-  concaveInt$loc = matrix(concaveInt$loc, ncol=2)
+  concaveInt$loc = matrix(concaveInt$loc[,1:2], ncol=2) # This line got changed
   concaveInt$loc = concaveInt$loc[nrow(concaveInt$loc):1, ]
   
+  # create the exterior hull
   hullExt = inla.nonconvex.hull.basic(xy, resolution=150, convex=-.4)
   
   # construct mesh with INLA
   mesh = inla.mesh.2d(n=n, boundary=list(concaveInt, hullExt), max.n=max.n, 
                       max.edge=max.edge, cutoff=cutoff, ...)
   
-  # if(FALSE) {
-  #   plotWithColor(xy[,1], xy[,2], depths, pch=19, cex=.3, xlab="Easting (km)", 
-  #                 ylab="Northing (km)")
-  #   polygon(xyHull[,1], xyHull[,2], border="green")
-  # }
-  # 
-  # if(FALSE) {
-  #   # old way to construct interior boundary:
-  #   # hullInt = inla.nonconvex.hull.basic(xy, resolution=350, convex=-.012)
-  #   # xyHull = hullInt$loc
-  #   # 
-  #   # mesh = inla.mesh.2d(n=n, boundary=list(hullInt, hullExt), max.n=max.n, 
-  #   #                     max.edge=max.edge, cutoff=cutoff, ...)
-  #   
-  #   # plot the mesh
-  #   plot(mesh, asp=1)
-  #   points(xy[,1], xy[,2], col="red", pch=".")
-  #   plot(xy[,1], xy[,2], pch=".", col="blue")
-  #   polygon(concaveHull)
-  # }
-  
+  # The geometry produced here is a bit weird
+  # number of slabs doesn't equal number of centroids!
+  # I fixed it, mismatch in deciding which slabs were interior/exterior
+   
   faultGeom = getGeomFromMesh(mesh, extent=concaveHull, maxDepth=maxDepth, 
                               method=method)
   
   
-  return(list(mesh=mesh, geom=faultGeom, extent=concaveHull, maxDepth=maxDepth))
+  return(list(mesh=mesh, geom=faultGeom, extent=projCSZ(concaveHull, units="km", inverse=TRUE), maxDepth=maxDepth))
 }
 
 # given a triangulated mesh constructed from discretizeSlab2, constructs 
@@ -200,97 +266,97 @@ getGeomFromMesh = function(mesh, extent, maxDepth=30, method=c("linear", "NN", "
   tti = mesh$graph$tti
   vv = mesh$graph$vv # sparse matrix, 1 if connected
   
-  nV = nrow(corners)
-  nT = nrow(tv)
+  nV = nrow(corners) # number of points in mesh
+  nT = nrow(tv) # number of triangles in mesh
   
-  inds = vt
-  
-  # for each triangle, calculate its center (for calculating spatial 
-  # covariances)
-  centers = matrix(nrow=nT, ncol=2)
+  # for each triangle, calculate its center
+  centers = matrix(nrow=nT, ncol=2) # (number of subfaults, 2)
   triCorners = list()
-  for(ti in 1:nT) {
-    vInds = tv[ti,]
-    thisCoords = corners[vInds,]
+  for(ti in 1:nT) { # loop over each subfault
+    vInds = tv[ti,] # get the indicies for corners of this subfault
+    thisCoords = corners[vInds,] # get the corners of the subfault
     
-    centers[ti,] = colMeans(thisCoords)
+    centers[ti,] = colMeans(thisCoords) # center is just the mean of Lon, Lat, Depth
     triCorners = c(triCorners, list(thisCoords))
   }
   
-  # get depths at all points
-  allDepths = getPointDepths(rbind(centers, corners), maxDepth=maxDepth, method=method)
-  centerDepths = allDepths[1:nrow(centers)]
-  allCornerDepths = allDepths[-(1:nrow(centers))]
+  # centers - (number of subfaults, 2) containing each subfault centroid
+  # triCorners - vector containings list of corners
   
-  # add depths to coordinates
+  cornerDepths = getPointDepths(corners, maxDepth=30, method=method)
+  centerDepths  = getPointDepths(centers, maxDepth=30, method=method)
+  
+  # add depths to center coordinates
+  # centers becomes a dataframe
   centers = data.frame(list(lon=centers[,1], lat=centers[,2], depth=centerDepths))
-  goodTri = rep(TRUE, nrow(centers)) # good if has some dip
-  internalI = rep(TRUE, nrow(centers)) # all corners within extent
-  for(i in 1:nT) {
-    vInds = tv[i,]
-    thisDepths = allCornerDepths[vInds]
+  
+  # indicator variables
+  goodTri = rep(TRUE, nT) # good if has some dip
+  internalI = rep(TRUE, nT) # all corners within extent
+  
+  
+  # add depth to corners
+  for(ti in 1:nT) {
+    vInds = tv[ti,] # get each row of corner indicies
+    thisDepths = cornerDepths[vInds]
     
+    # if depth NA or all depths the same
     if(any(!is.finite(thisDepths)) || all(thisDepths == thisDepths[1])) {
-      goodTri[i] = FALSE
+      # print(thisDepths)
+      # Everything excluded was because of NA values
+      goodTri[ti] = FALSE
     }
-    if(any(!fields::in.poly(triCorners[[i]][,1:2], extent))) {
-      internalI[i] = FALSE
+    
+    # if any vertex lies outside the interior hull
+    
+    if(any(!fields::in.poly(triCorners[[ti]][,1:2], extent))) {
+      internalI[ti] = FALSE
     }
-    triCorners[[i]] = data.frame(lon=triCorners[[i]][,1], lat=triCorners[[i]][,2], 
-                                 depth=thisDepths)
+    
+    triCorners[[ti]] = data.frame(lon=triCorners[[ti]][,1], lat=triCorners[[ti]][,2], depth=thisDepths)
   }
+  
+  
   
   # determine which triangles are in the fault extent
   # internalI = fields::in.poly(centers, extent)
   
-  internalCenters = centers[internalI,]
-  externalCenters = centers[!internalI,]
+  # This didn't take into account the goodTri condition
+  # created a mis-match between the number of internal triangles and internal centers
+  #internalCenters = centers[internalI,]
+  #externalCenters = centers[!internalI,]
+  
+  internalCenters = list()
+  externalCenters = list()
+  
   internalTriCorners = list()
   externalTriCorners = list()
-  for(i in 1:nrow(centers)) {
-    thisTriCorners = triCorners[[i]]
-    if(internalI[i] && goodTri[i]) {
-      internalTriCorners = c(internalTriCorners, list(thisTriCorners))
-    } else {
-      externalTriCorners = c(externalTriCorners, list(thisTriCorners))
-    }
-  }
-  # for(i in 1:nrow(centers)) {
-  #   thisTriCorners = triCorners[[i]]
-  #   if(internalI[i]) {
-  #     internalTriCorners = c(internalTriCorners, list(thisTriCorners))
-  #   } else {
-  #     externalTriCorners = c(externalTriCorners, list(thisTriCorners))
-  #   }
-  # }
   
-  if(FALSE) {
-    centers = internalCenters
-    corners = internalTriCorners
+  # loop over each subfault
+  # add it as an interior or exterior subfault
+  for(ti in 1:nT) {
     
-    weirdCenters = centers[internalI & !goodTri,]
-    weirdCorners = triCorners[which(internalI & !goodTri)]
+    thisTriCorners = triCorners[[ti]]
+    thisCenter = centers[ti,]
+    row.names(thisCenter) = NULL
     
-    for(i in 1:length(weirdCorners)) {
-      thisCorners = weirdCorners[[i]]
-      
-      inExt = fields::in.poly(as.matrix(thisCorners), extent, inflation=-1e-06)
-      if(all(inExt)) {
-        print(i)
+    if(internalI[ti]) {
+       if (goodTri[ti]){
+         internalTriCorners = c(internalTriCorners, list(thisTriCorners))
+         internalCenters    = c(internalCenters, list(thisCenter))
+       }
+      else{
+        xy = cbind(thisTriCorners$lon, thisTriCorners$lat)
+        xy = projCSZ(xy, inverse=TRUE, units="km")
+        
+        print(cbind(xy, thisTriCorners$depth))
       }
+      
+    } else {
+      
+      externalTriCorners = c(externalTriCorners, list(thisTriCorners))
+      externalCenters    = c(externalCenters, list(thisCenter))
     }
-    
-    plot(weirdCenters[,1], weirdCenters[,2], pch=19)
-    polygon(extent)
-    
-    plotPolyDat(corners, asp=1)
-    plotPolyDat(weirdCorners, col="red", border=rgb(1,0,0), new=FALSE)
-    
-    getDepths = function(x) {mean(x[,3])}
-    plotPolyDat(corners, sapply(corners, getDepths), asp=1, borders=rgb(1,1,1,0), 
-                leaveRoomForLegend=TRUE)
-    plotPolyDat(weirdCorners, sapply(weirdCorners, getDepths), border=rgb(1,0,0,0), 
-                asp=1, new=FALSE, leaveRoomForLegend=TRUE)
   }
   
   list(centers=internalCenters, corners=internalTriCorners,
@@ -347,51 +413,31 @@ getPointDepths = function(pts, maxDepth=Inf, method=c("linear", "NN", "kernel"),
     xinds = roundToGrid(pts[,1], xgrid, returnInds=TRUE)
     yinds = roundToGrid(pts[,2], ygrid, returnInds=TRUE)
     
-    # kernel smoother (Epanechnikov/parabolic kernel)
-    # bw=5km
-    # totTime = system.time(out <- Lwls2D(bw=5, kern="quart", xin=xy, yin=depths, 
-    #                                     xout=pts))[3]
-    # totTime = system.time(out <- Lwls2D(bw=4, kern="epan", xin=xy, yin=depths, 
-    #                                     xout=pts, crosscov=TRUE))[3]
-    # totTime = system.time(out <- Lwls2D(bw=5, kern="epan", xin=xy, yin=depths, 
-    #                                     xout1=xgrid, xout2=ygrid))[3]
-    # totTime = system.time(out <- Lwls2D(bw=4, kern="gauss", xin=xy, yin=depths,
-    #                                     xout1=xgrid, xout2=ygrid, crosscov=TRUE))[3]
-    # ptsDepths = out[cbind(xinds, yinds)]
-    # totTime/60
-    # 6.678383
-    
-    # smooth.2d(Y, ind = NULL, weight.obj = NULL, setup = FALSE, grid = NULL,
-    #           x = NULL, nrow = 64, ncol = 64, surface = TRUE, cov.function =
-    #             gauss.cov, Mwidth = NULL, Nwidth = NULL, ...)
-    
     totTime = system.time(out <- smooth.2d(Y=depths, x=xy, grid=list(x=xgrid, y=ygrid), 
                                            aRange=4))[3]
     # totTime/60
     # 0.1844333 # for res=1
     # 0.61845 # for res=.5
     # 3.374683 # for res=.25 (but actually more like 2 minutes on laptop...)
+    
     ptsDepths = out$z[cbind(xinds, yinds)]
     
-    if(FALSE) {
-      
-      plotWithColor(pts[,1], pts[,2], ptsDepths, zlim=c(-40, 0), 
-                    asp=1, forceColorsInRange=TRUE, cex=.2, pch=19, 
-                    xlim=range(xgrid), ylim=range(ygrid))
-      plotWithColor(xy[,1], xy[,2], depths, zlim=c(-40, 0), 
-                    asp=1, forceColorsInRange=TRUE, cex=.2, pch=19, 
-                    xlim=range(xgrid), ylim=range(ygrid))
-    }
-    
     return(ptsDepths)
+    
   } else if(method == "NN") {
     distMat = rdist(pts, xy)
     nearestInds = apply(distMat, 1, which.min)
     return(depths[nearestInds])
+    
   } else if(method == "linear") {
-    totTime = system.time(out <- interp::interp(x=xy[,1], y=xy[,2], z=depths,
-                                      xo=pts[,1], yo=pts[,2], output="points",
-                                      method="linear"))[3]
+    
+    out = interp::interp(x=xy[,1], y=xy[,2], z=depths,
+                         xo=pts[,1], yo=pts[,2],
+                         output="points", method="linear")
+    
+    #totTime = system.time(out <- interp::interp(x=xy[,1], y=xy[,2], z=depths,
+     #                                 xo=pts[,1], yo=pts[,2], output="points",
+     #                                 method="linear"))[3]
     # totTime
     # 2.085 
     
@@ -476,6 +522,57 @@ divideSubfault = function(row, nDown=3, nStrike=4) {
   
   return(rows)
 }
+
+# AT - a function I found that Finn had made
+# Maybe useful for us
+# Link: https://groups.google.com/g/r-inla-discussion-group/c/z1n1exlZrKM
+#
+#' Convert inla.mesh to sp objects
+#'
+#' @param mesh An \code{\link{inla.mesh}} object
+#' @return A list with \code{sp} objects for triangles and vertices:
+#' \describe{
+#' \item{triangles}{\code{SpatialPolygonsDataFrame} object with the triangles in
+#' the same order as in the original mesh, but each triangle looping through
+#' the vertices in clockwise order (\code{sp} standard) instead of
+#' counterclockwise order (\code{inla.mesh} standard). The \code{data.frame}
+#' contains the vertex indices for each triangle, which is needed to link to
+#' functions defined on the vertices of the triangulation.
+#' \item{vertices}{\code{SpatialPoints} object with the vertex coordinates,
+#' in the same order as in the original mesh.}
+#' }
+#' @export
+inla.mesh2sp <- function(mesh) {
+  crs <- inla.CRS(inla.CRSargs(mesh$crs))
+  isgeocentric <- identical(inla.as.list.CRS(crs)[["proj"]], "geocent")
+  if (isgeocentric || (mesh$manifold == "S2")) {
+    stop(paste0(
+      "'sp' doesn't support storing polygons in geocentric coordinates.\n",
+      "Convert to a map projection with inla.spTransform() before
+calling inla.mesh2sp()."))
+    }
+
+  triangles <- SpatialPolygonsDataFrame(
+    Sr = SpatialPolygons(lapply(
+      1:nrow(mesh$graph$tv),
+      function(x) {
+        tv <- mesh$graph$tv[x, , drop = TRUE]
+        Polygons(list(Polygon(mesh$loc[tv[c(1, 3, 2, 1)],
+                                       1:2,
+                                       drop = FALSE])),
+                 ID = x)
+      }
+    ),
+    proj4string = crs
+    ),
+    data = as.data.frame(mesh$graph$tv[, c(1, 3, 2), drop = FALSE]),
+    match.ID = FALSE
+  )
+  vertices <- SpatialPoints(mesh$loc[, 1:2, drop = FALSE], proj4string = crs)
+  
+  list(triangles = triangles, vertices = vertices)
+}
+
 
 
 

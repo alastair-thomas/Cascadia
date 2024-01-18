@@ -87,6 +87,11 @@ library(metR)
 library(TMB)
 library(stars)
 library(rSPDE)
+library(inlabru)
+library(tidyr)
+library(INLA)
+library(MASS)
+library(matrixcalc)
 
 #inf = sessionInfo()
 #if(inf$platform == "x86_64-apple-darwin17.0 (64-bit)") {
@@ -110,14 +115,14 @@ library(rSPDE)
 options(warn=1)
 
 setwd("~/Uni/NTNU/Masters Project/CSZ/R/Code")
-source("Code/loadSubDat.R")
+#source("Code/loadSubDat.R")
 source("Code/slab.R")
 source("Code/okada.R")
 source("Code/plotter.R")
 source("Code/genericSpatialPlottingFunctions.R")
 source("Code/utilityFuns.R")
 source("Code/slab2map.R")
-#source("code/test.R")
+source("code/baseMap.R")
 
 ## load in global variables made from the following script: 
 #if(FALSE) {

@@ -22,24 +22,27 @@ readGrid = function(varName){
 }
 
 
-plotGrid = function(varName = "depth", projection="NULL"){
+plotGrid = function(scale=2, varName = "depth", projection="NULL"){
   # gets the base map in given projection
-  g = plotBase(scale=2)
+  g = plotBase(scale=scale, labels=FALSE)
   
   # read in the slab2 data for depth
   grid = readGrid(varName)
-  # limit the depth
-  if (varName == "depth"){
-    grid = grid[grid$z > -30,]
-    grid$z = as.numeric(-grid$z)
-  }
   
-  grid$Discrete <- cut(z, seq(0,30000,1000), include.lowest=T)
+  # Extract point data
+  point_data = st_coordinates(grid)
+  
+  # Convert to a data frame
+  grid2 = as.data.frame(point_data)
+  grid2$Z = -grid$z
+  
+  # limit the depth
+  
+  #grid$Discrete <- cut(grid$z, seq(0,max(grid$depth),1), include.lowest=T)
   
   g = g +
-    geom_sf(data=grid, aes(color=z)) +
-    #geom_sf(data=grid, aes(color=z), stat="contour_filled") +
-    scale_colour_brewer(palette = "RdBu", name = "Depth (km)") +
+    geom_tile(data=grid2, aes(x=X, y=Y, fill=Z), alpha=0.75) +
+    scale_fill_gradient(low = "red", high = "blue", name = "Depth (km)", trans="reverse") +
     theme(legend.position = "right", legend.key.height = unit(3, 'cm'))
 
   # set the map in the correct projection
@@ -53,13 +56,12 @@ plotGrid = function(varName = "depth", projection="NULL"){
     g = g + coord_sf(xlim = c(st_coordinates(limits)[,1]), ylim = c(st_coordinates(limits)[,2]), crs=st_crs("EPSG:32610"))
   }
   else{
-    g = g + coord_sf(xlim = -c(130, 120), ylim = c(40, 50), crs=st_crs("EPSG:4326"))
+    g = g + coord_sf(xlim = -c(129, 119), ylim = c(39, 50), crs=st_crs("EPSG:4326"))
   }
   
   return(g)
 }
 
-#plotGridGG("depth", "Depth (km)", 50)
-
-#ggsave(file="slab2-depth.png", path="Plots/", height=9, width=9)
+#plotGrid()
+#ggsave(file="Slab2.png", path="Plots/", height=9, width=6)
 
