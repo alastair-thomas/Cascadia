@@ -6,11 +6,10 @@ Here is the timeline, to get the masters thesis finished by June 1st (Technicall
 - Get results using simple mesh
 
 ## Week 3
-- Write up everything so far
+- Get results using a finer mesh
 
 ## Week 4
-- Change to bayesian methodology
-- Make sure I can get results
+- Write everything up thus far
 
 ## Week 5
 - Find and add in more data sources
@@ -18,7 +17,7 @@ Here is the timeline, to get the masters thesis finished by June 1st (Technicall
 - Add these data sources and results into the writing.
 
 ## Week 6
-- Change to a finer grid meshØ use NTNU fast servers
+- Change to a bayesian methodolgy
 
 ## Week 7
 - Write up all the new stuff
