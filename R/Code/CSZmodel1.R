@@ -20,23 +20,28 @@ setwd("~/Uni/NTNU/Masters Project/CSZ/R/Code")
 # load in the fault geometry
 # if not saved run the function "getFaultGeometry"
 setwd("~/Uni/NTNU/Masters Project/CSZ/R/Data/Fault Geometry")
-load("simpleFault.RData") # loads in triangular fault geometry as "simpleFault"
+load("mediumFault.RData") # loads in triangular fault geometry as "mediumFault"
 setwd("~/Uni/NTNU/Masters Project/CSZ/R/Code")
 
 # load in the okada matrix
-dir = paste0("~/Uni/NTNU/Masters Project/CSZ/R/Data/Okada/OkadaMatrix", earthquake, ".RData")
+dir = paste0("~/Uni/NTNU/Masters Project/CSZ/R/Data/Okada/OkadaMatrixMedium", earthquake, ".RData")
 # should have already made Okada matrix for this earthquake
 if (file.exists(dir)){
   setwd("~/Uni/NTNU/Masters Project/CSZ/R/Data/Okada")
-  load(paste0("OkadaMatrix", earthquake, ".RData"))
+  load(paste0("OkadaMatrixMedium", earthquake, ".RData"))
   setwd("~/Uni/NTNU/Masters Project/CSZ/R/Code")
 } else {
   # otherwise create the new okada unit vector
   # The summation step is skipped, as this happens when G is matrix multiplied with the slip vector
-  G = getOkada(geom = simpleFault,
-               lon  = DR3$Lon[DR3$event == earthquake],
-               lat  = DR3$Lat[DR3$event == earthquake],
-               earthquake = earthquake)
+  G3 = getOkada(geom = mediumFault,
+                lon  = DR3$Lon[DR3$event == earthquake],
+                lat  = DR3$Lat[DR3$event == earthquake],
+                earthquake = earthquake)
+  
+  setwd("~/Uni/NTNU/Masters Project/CSZ/R/Data/Okada")
+  save(G3, file=paste0("OkadaMatrixMedium", earthquake, ".RData"))
+  setwd("~/Uni/NTNU/Masters Project/CSZ/R/Code")
+  
 }
 
 
@@ -44,7 +49,7 @@ if (file.exists(dir)){
 # created based on the fault geometry
 # if not saved then run "spde_mesh.R" to create the files
 setwd("~/Uni/NTNU/Masters Project/CSZ/R/Data/SPDE")
-load("spdeMesh.RData") # loads in two spde objects
+load("spdeMeshMedium.RData") # loads in two spde objects
 setwd("~/Uni/NTNU/Masters Project/CSZ/R/Code")
 
 
@@ -56,7 +61,7 @@ V = DR3$Uncertainty[DR3$event == earthquake]
 
 
 N = length(subsidence) # number of data points
-K = length(simpleFault) # number of subfaults
+K = length(mediumFault) # number of subfaults
 M = dim(inla_mesh$loc)[1] # number of points in spde mesh
 
 
@@ -65,7 +70,7 @@ depths = rep(0, K) # empty vector for depths
 for (i in 1:K){
   # Use positive depths
   # as depth increases, taper goes from one to zero
-  depths[i] = -simpleFault[[i]]$depth / (10^3) # change to kms
+  depths[i] = -mediumFault[[i]]$depth / (10^3) # change to kms
 }
 
 
@@ -78,18 +83,18 @@ spde = inla_spde$param.inla[c("M0","M1","M2")]
 data = list(depth      = depths,
             subsidence = subsidence,
             V          = V,
-            okada      = as.matrix(G),
+            okada      = as.matrix(G3),
             spde_idx   = inla_mesh$idx$loc - 1, # -1 because c++ starts array indexes at 0.
             spde       = spde)
 
 
 # the parameters to optimise
 # I am guessing ar good starting parameters
-parameters = list(x          = rep(0, M),
+parameters = list(x          = rep(0.5, M),
                   log_lambda = -2.1,
                   mu         = 3.7,
                   log_kappa  = -4.6,
-                  log_tau    = -1.9)
+                  log_tau    = 7.6)
 
 
 ## create the objective function using TMB
@@ -133,18 +138,16 @@ xlim = range(c(r$okadaSubsidence, -DR3$subsidence[DR3$event == earthquake]))
 plot(r$okadaSubsidence, lats, xlim=xlim, pch=19, col='blue', cex=.2)
 points(-DR3$subsidence[DR3$event == earthquake], lats, pch=19, col='black', cex=.2)
 
-# check underlying spatial field
-g = plotFault(simpleFault, z=r$x[inla_mesh$idx$loc], legendTitle="Normalized log slips")
+# Check the plot of the spatial field
+g = plotX(inla_mesh, z=r$x)
 plot(g)
 
 # check average untapered slip
-untaperedSlips = r$untaperedSlips
-g2 = plotFault(simpleFault, z=r$untaperedSlips, legendTitle="Untapered Slips (m)")
+g2 = plotFault(mediumFault, z=r$untaperedSlips, legendTitle="Untapered Slips (m)")
 plot(g2)
 
 # plot tapered slips
-taperedSlips = r$taperedSlips
-g3 = plotFault(simpleFault, z=r$taperedSlips, legendTitle="Tapered Slips (m)")
+g3 = plotFault(mediumFault, z=r$taperedSlips, legendTitle="Tapered Slips (m)")
 plot(g3)
 
 # check the mean of a log normal
@@ -246,11 +249,15 @@ xSum = cbind(mean   = (apply(xDraws, 1, mean)),
              median = (apply(xDraws, 1, median)),
              sd     = (apply(xDraws, 1, sd)))
 
-g5 = plotFault(simpleFault, z=xSum[inla_mesh$idx$loc,1], legendTitle="Normalized\nlog slips Mean")
+# plot the mean x distribution
+g5 = plotX(inla_mesh, z=xSum[,1], legendTitle="Spatial Random Effect\nMean")
 plot(g5)
 
-g6 = plotFault(simpleFault, z=xSum[inla_mesh$idx$loc,3], legendTitle="Normalized\nlog slips SD")
+# plot the standard deviation of x distribution
+g6 = plotX(inla_mesh, z=xSum[,3], legendTitle="Spatial Random Effect\nStandard Deviation", colourScale="plasma")
 plot(g6)
+
+
 
 ## create the slip draws
 slipDraws = matrix(data=0, nrow=K, ncol=nSims)
@@ -271,94 +278,86 @@ slipSum = cbind(mean = (apply(slipDraws, 1, mean)),
                 lower = (apply(slipDraws, 1, quantile, .05)),
                 upper = (apply(slipDraws, 1, quantile, .95)))
 
-print(slipSum)
+print(dim(slipSum))
 
 # plot the posterior mean slip
-g7 = plotFault(simpleFault, z=slipSum[,1], legendTitle="Mean\nPosterior Slip (m)")
+g7 = plotFault(mediumFault, z=slipSum[,1], legendTitle="Posterior Slip\nMean (m)")
 plot(g7)
 
 # plot the posterior median slip
-g8 = plotFault(simpleFault, z=slipSum[,2], legendTitle="Median\nPosterior Slip (m)")
+g8 = plotFault(mediumFault, z=slipSum[,2], legendTitle="Posterior Slip\nMedian (m)")
 plot(g8)
 
 # plot the posterior slip standard deviation
-g9 = plotFault(simpleFault, z=slipSum[,3], legendTitle="Stanadard Deviation\nPosterior Slip (m)")
+g9 = plotFault(mediumFault,
+               z=slipSum[,3],
+               legendTitle="Posterior Slip\nStandard Deviation (m)",
+               colourScale="plasma")
 plot(g9)
 
 
 # now calculate subsidences for each data point
 # I use the mean slip across each sub fault
-subPred = G %*% slipSum[,1]
+subPred = G3 %*% slipSum[,1]
 
 absError = abs(subsidence - subPred)
 signError = sign(subsidence) == sign(subPred)
-
-
-plotErrors = function(error, signError, scale=2){
-  # gets the base map of the CSZ
-  g = plotBase(scale=scale)
-  
-  Sites = data.frame(Site=DR3$Site[DR3$event == earthquake],
-                     Lat=DR3$Lat[DR3$event == earthquake],
-                     Lon=DR3$Lon[DR3$event == earthquake])
-  Sites$Error = error
-  Sites$sign = signError
-  
-  
-  g = g +
-    geom_point(data=Sites, aes(x=Lon, y=Lat, colour=Error, shape=sign), size=scale*1.5) +
-    scale_colour_gradient(low="red", high="green", name="Absolute Error (m)", trans = "reverse") +
-    scale_shape_manual(name = "Same Sign?", values = c(15, 20), labels = c("No", "Yes")) + 
-    coord_sf(xlim=-c(128, 122), ylim=c(40, 50))
-  
-  return(g)
-}
 
 g10 = plotErrors(absError, signError)
 plot(g10)
 
 print(paste("Count of wrong sign: ", N - sum(signError)))
 
-# Now calculate subsidence across a mesh of the whole fault
-# I need to create a new G here
 
-lon = seq(-128, -123, length.out=25)
-lat = seq(40, 50, length.out=25)
+
+# Now calculate subsidence across a mesh of the whole fault
+
+gridN = 25
+lon = seq(-128, -123, length.out=gridN)
+lat = seq(40, 50, length.out=gridN)
 lonLat = expand.grid(x=lon, y=lat)
 
-
 # load in the okada matrix for the whole fault
-dir = paste0("~/Uni/NTNU/Masters Project/CSZ/R/Data/Okada/OkadaMatrixT1Whole.RData")
+dir = paste0("~/Uni/NTNU/Masters Project/CSZ/R/Data/Okada/OkadaMatrixMediumT1Whole.RData")
 # should have already made Okada matrix for this earthquake
 if (file.exists(dir)){
   setwd("~/Uni/NTNU/Masters Project/CSZ/R/Data/Okada")
-  load("OkadaMatrixT1Whole.RData")
-  G2 = G
-  load("OkadaMatrixT1.RData")
+  load("OkadaMatrixMediumT1Whole.RData")
   setwd("~/Uni/NTNU/Masters Project/CSZ/R/Code")
-  
-  
+
+
 } else {
+  
   # otherwise create the new okada unit vector
   # The summation step is skipped, as this happens when G is matrix multiplied with the slip vector
-  G2 = getOkada(geom = simpleFault,
+  G4 = getOkada(geom = mediumFault,
                 lon  = lonLat$x,
                 lat  = lonLat$y,
                 earthquake = "T1Whole")
+  
+  setwd("~/Uni/NTNU/Masters Project/CSZ/R/Data/Okada")
+  save(G4, file="OkadaMatrixMediumT1Whole.RData")
+  setwd("~/Uni/NTNU/Masters Project/CSZ/R/Code")
+  
 }
 
-subWholeFault = G2 %*% slipSum[,1]
+# predict subsidence
+subWholeFault = G4 %*% slipSum[,1]
 
+# set up for plotting
 subDF = data.frame(Lon=lonLat$x,
                    Lat=lonLat$y,
                    Sub=subWholeFault)
 
-g11 = plotBase(scale=2, labels=FALSE, countryBoundary=FALSE)
+# here I use the Scico package which has diverging colour scales
+# that are also safe to use for blind people.
+g11 = plotBase(labels=FALSE, countryBoundary=FALSE)
 g11 = g11 +
-  geom_raster(data=subDF, aes(x=Lon, y=Lat, fill=Sub), alpha=0.75) +
-  scale_fill_gradientn(colours=c("red", "white", "blue"), name = "Vertical\nDisplacement (m)",
-                       values=scales::rescale(c(min(subDF$Sub), 0, max(subDF$Sub)))) +
+  geom_tile(data=subDF, aes(x=Lon, y=Lat, fill=Sub)) +
+  scale_fill_scico(alpha=0.75, palette = 'vik', midpoint=0, name="Subsidence (m)") +
+  #scale_fill_viridis_c(alpha=0.75, name="Subsidence (m)", option="viridis") +
   theme(legend.position = "right", legend.key.height = unit(3, 'cm')) +
   coord_sf(xlim=-c(128, 122), ylim=c(40, 50))
+
 plot(g11)
 

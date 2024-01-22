@@ -1,3 +1,351 @@
+plotErrors = function(error, signError, scale=2){
+  # gets the base map of the CSZ
+  g = plotBase(scale=scale)
+  
+  Sites = data.frame(Site=DR3$Site[DR3$event == earthquake],
+                     Lat=DR3$Lat[DR3$event == earthquake],
+                     Lon=DR3$Lon[DR3$event == earthquake])
+  Sites$Error = error
+  Sites$sign = signError
+  
+  
+  g = g +
+    geom_point(data=Sites, aes(x=Lon, y=Lat, colour=Error, shape=sign), size=scale*1.5) +
+    scale_colour_gradient(low="red", high="green", name="Absolute Error (m)", trans = "reverse") +
+    scale_shape_manual(name = "Same Sign?", values = c(15, 20), labels = c("No", "Yes")) + 
+    coord_sf(xlim=-c(128, 122), ylim=c(40, 50))
+  
+  return(g)
+}
+
+
+plotBase = function(scale=1, labels=TRUE, countryBoundary=TRUE){
+  
+  # read in the border data
+  borders = readCountries()
+  
+  # extract each country and simplfy the geometry so it plots nicely
+  canadaBorders = ms_simplify(borders$Canada, weighting=0.7, keep_shapes=TRUE)
+  usBorders = ms_simplify(borders$US, weighting=0.7, keep_shapes=TRUE)
+  canUSBorder = ms_simplify(borders$canUSBorder, weighting=0.7, keep_shapes=TRUE)
+  
+  placeNames = data.frame(Lon = c(-126),
+                          Lat = c(49.9),
+                          Place = c("Vancouver Island"))
+  placeNames = st_as_sf(x=placeNames, coords = c("Lon", "Lat"), crs=st_crs("EPSG:4326"))
+  
+  stateNames = data.frame(Lon = c(-121.75, -121.5, -121, -121.5),
+                          Lat = c(40.9, 44, 47.5, 50),
+                          State = c("California", "Oregon", "Washington", "British Columbia"))
+  stateNames = st_as_sf(x=stateNames, coords = c("Lon", "Lat"), crs=st_crs("EPSG:4326"))
+  
+  countryNames = data.frame(Lon=c(-119.5, -119.5),
+                            Lat=c(49.2, 48.8),
+                            Country=c("Canada", "USA"))
+  countryNames = st_as_sf(x=countryNames, coords = c("Lon", "Lat"), crs=st_crs("EPSG:4326"))
+  
+  # add land
+  g = ggplot() +
+    geom_sf(data = usBorders, fill = "white", colour="black") +
+    geom_sf(data = canadaBorders, fill = "white", colour="black")
+  
+  # if the boundary boudnary line is wanted
+  if (countryBoundary==TRUE){
+    g = g+
+      geom_sf(data=canUSBorder, linewidth=scale*0.6, colour="black", linetype=11)
+  }
+  
+  # if the labels are wanted
+  if (labels){
+    g = g +
+      geom_sf_text(data=stateNames, aes(label=State), size=scale*2.5) +
+      geom_sf_text(data=countryNames, aes(label=Country), size=scale*3, hjust=1) +
+      geom_sf_text(data=placeNames, aes(label=Place), size=scale*2, angle=-40)
+  }
+  
+  # control the appearance
+  g = g +
+    theme_bw() +
+    theme(panel.background = element_rect('#f0feff')) +
+    labs(x = "",
+         y = "",
+         title = "")
+  
+  return(g)
+}
+
+
+# a fucntion to get the border data for the country and required states / provinces
+readCountries = function(){
+  
+  setwd("~/Uni/NTNU/Masters Project/CSZ/R")
+  # reads in the Canada country data from GADM
+  if (file.exists("Data/Canada/gadm/gadm41_CAN_1_pk.rds")){
+    canada = readRDS("Data/Canada/gadm/gadm41_CAN_1_pk.rds")
+  } else {
+    canada = gadm("CAN", level=1, path="Data/Canada", resolution=2) # provinces
+  }
+  
+  # reads in the US country data from GADM
+  if (file.exists("Data/US/gadm/gadm41_USA_1_pk.rds")){
+    us = readRDS("Data/US/gadm/gadm41_USA_1_pk.rds")
+  } else {
+    us = gadm("USA", level=1, path="Data/US", resolution=2) # states
+  }
+  
+  usSF = st_as_sf(us, crs=st_crs("EPSG:4326"))
+  canadaSF = st_as_sf(canada, crs=st_crs("EPSG:4326"))
+  
+  usStates = usSF[is.element(usSF$NAME_1,
+                             c("California", "Oregon", "Washington",
+                               "Idaho", "Nevada", "Arizona")),]
+  canadaProv = canadaSF[is.element(canadaSF$NAME_1,
+                                   c("British Columbia", "Alberta")),]
+  
+  border = read_sf('Data/Border/Canada_and_US_Border.shp')
+  border2 = border[is.element(border$SectionEng, c('Straits of Georgia and Juan de Fuca',
+                                                   'The 49th Parallel Boundary, Columbia Valley to Pacific Ocean',
+                                                   'The 49th Parallel Boundary, Similkameen River to Columbia Valley',
+                                                   'The 49th Parallel Boundary, West Kootenay to the Similkameen River')), ]
+  
+  return(list(Canada=canadaProv, US=usStates, canUSBorder=border2))
+}
+
+# A function that plots a given inla.mesh, with or without colours
+#
+# mesh - an inla.mesh object
+# z - colours that relate to the verticies in the inla.mesh
+#      If NA then just the mesh is plotted
+# colourScale - To differentiate between means and uncertainties
+plotX = function(mesh, proj="northing", z=c(NA), legendTitle="Spatial Effect", colourScale="viridis"){
+  
+  if (proj=="northing"){
+    xy = mesh$loc[,1:2]
+    latLon = projCSZ(xy, inverse=TRUE, units="km")
+    mesh$loc[,1:2] = latLon
+    mesh$crs = st_crs("EPSG:4326")
+  } else{
+    xy = projCSZ(mesh$loc[,1:2], units="km")
+  }
+  
+  g = plotBase(scale=1.5, labels=FALSE, countryBoundary=FALSE)
+  
+  if (any(is.na(z))){
+    g = g +
+      gg(mesh, edge.colour="black", interior=FALSE, exterior=FALSE)
+  } else{
+    
+    boundaryXY = as.matrix(inla.mesh.boundary(mesh)[[1]]$loc[,1:2])
+    
+    # Create the mask object
+    points = SpatialPoints(boundaryXY, proj4string=CRS("EPSG:4326"))
+    hullExt = SpatialPolygons(list(Polygons(list(Polygon(points)), "ExteriorBoundary")), proj4string=CRS("EPSG:4326"))
+    
+    # here I am going to have to make my own plotting function
+    # interpolate to a fine grid
+    # then plot with geom_tile
+    
+    g = g +
+      gg(mesh,
+         colour=z,
+         mask=hullExt) +
+      scale_fill_viridis_c(alpha=0.75, name = legendTitle, option = colourScale)
+  }
+  
+  g = g +
+    coord_sf(xlim=-c(130, 121), ylim=c(36, 54))
+  
+  return(g)
+}
+
+
+# function to plot the slab geometry
+#
+# fault - like the output of getFullFaultGeom
+# z - can be set to a value relating to each subfault
+#     Colour of subfaults changes with z
+# colourScale - To differentiate between means and uncertainties
+plotFault = function(fault, z=c(NA), scale=1.5, legendTitle="Slip (m)", colourScale="viridis"){
+  
+  # number sub faults
+  nsf = length(fault)
+  
+  if (any(is.na(z))==FALSE){
+    if (length(z) != nsf){
+      stop("The z vector must correspond to the number of subfaults")
+    }
+  }
+  
+  # create the dataframe to plot
+  ids = factor(1:nsf)
+  
+  lons = rep(0, 3*nsf)
+  lats = rep(0, 3*nsf)
+  
+  for (i in 1:nsf){
+    lons[(((i-1)*3)+1):((i*3))] = fault[[i]]$corners[,1]
+    lats[(((i-1)*3)+1):((i*3))] = fault[[i]]$corners[,2]
+  }
+  values = data.frame(
+    id = ids,
+    z=z
+  )
+  positions = data.frame(
+    id = rep(ids, each = 3),
+    x = lons,
+    y = lats
+  )
+  
+  # merge together values and positions
+  datapoly = merge(values, positions, by = c("id"))
+  
+  # plot the base map
+  g = plotBase(scale=scale, labels=FALSE)
+  
+  # if we want to colour in the subfaults
+  if (any(is.na(z)) == FALSE){
+    
+    g = g +
+      geom_polygon(data=datapoly, aes(x=x, y=y, fill = z, group = id), alpha=0.8, color="white", linewidth=0.15) +
+      scale_fill_viridis_c(name = legendTitle, option = colourScale) +
+      theme(legend.position="right", legend.key.height = unit(3, 'cm')) +
+      labs(fill=legendTitle)
+    
+    # otherwise just plot the triangles  
+  } else{
+    g = g +
+      geom_polygon(data=datapoly, aes(x=x, y=y, group=id), color="#D35400", fill=NA, linewidth=0.15)
+  }
+  
+  # set the plotting limits
+  g = g +
+    coord_sf(xlim=-c(128.5, 122), ylim=c(39.8, 50.2))
+  
+  return(g)
+}
+
+# A function to plot the mesh onto the base map
+#
+# mesh - inla.mesh object
+# pts - options co-ordinates to plot
+# scale - doesn't do anything atm
+# proj - which projection the given data is in (should all be in same format)
+plotMesh = function(mesh, pts=NULL, scale=1.5, proj="northing"){
+  
+  if (proj == "northing"){
+    xy = mesh$loc[,1:2]
+    latLon = projCSZ(xy, inverse=TRUE, units="km")
+    mesh$loc[,1:2] = latLon
+  }
+  
+  g = plotBase(scale=scale, labels=FALSE, countryBoundary=FALSE)
+  
+  g = g +
+    gg(mesh,
+       edge.color="red", edge.linewidth=0.15,
+       int.linewidth=0.75, int.color="blue",
+       ext.linewidth = 0.75, ext.color = "blue") +
+    coord_sf(xlim=-c(131, 120), ylim=c(36, 54))
+  
+  # if want to plot the centers of the subfaults
+  if (is.null(pts) == FALSE){
+    if (proj == "northing"){
+      pts = projCSZ(pts, inverse=TRUE, units="km")
+    }
+    
+    print(data.frame(pts))
+    
+    g = g +
+      geom_point(data=data.frame(pts), aes(x=X, y=Y), size=0.1, color="red")
+  }
+  
+  return(g)
+}
+
+# A function to plot the inla mesh and the subfault ontop of each other
+#
+# fault - like the output of getFullFaultGeom, describes the subfaults
+# mesh - inla.mesh object
+# projection - what coordinate system the mesh uses
+# scale - controls the size of text on basemap
+plotBothMesh = function(fault, mesh, meshProj="northing", scale=1.5){
+  if (meshProj == "northing"){
+    xy = mesh$loc[,1:2]
+    latLon = projCSZ(xy, inverse=TRUE, units="km")
+    mesh$loc[,1:2] = latLon
+  }
+  
+  # add the underlying spatial field plot SPDE
+  g = plotBase(scale=scale, labels=FALSE)
+  
+  g = g +
+    gg(mesh, edge.color="red",
+       edge.linewidth=0.15,
+       interior=FALSE,
+       exterior=FALSE)
+  
+  # add the sub faults
+  nsf = length(fault)
+  
+  ids = factor(1:nsf)
+  
+  depths = rep(0, nsf)
+  lons = rep(0, 3*nsf)
+  lats = rep(0, 3*nsf)
+  
+  for (i in 1:nsf){
+    lons[(((i-1)*3)+1):((i*3))] = fault[[i]]$corners[,1]
+    lats[(((i-1)*3)+1):((i*3))] = fault[[i]]$corners[,2]
+  }
+  
+  values = data.frame(
+    id = ids,
+    depth = -depths
+  )
+  
+  positions = data.frame(
+    id = rep(ids, each = 3),
+    x = lons,
+    y = lats
+  )
+  
+  # merge together
+  datapoly = merge(values, positions, by = c("id"))
+  
+  # add subfault mesh
+  g = g +
+    geom_polygon(data=datapoly, aes(x=x, y=y, group=id),
+                 color="blue", fill=NA, size=0.15)
+  
+  
+  # Finally add the centroids of subfaults
+  x = rep(0, nsf)
+  y = rep(0, nsf)
+  
+  for (i in 1:nsf){
+    x[i] = fault[[i]]$lon
+    y[i] = fault[[i]]$lat
+  }
+  
+  centers = data.frame(x=x, y=y)
+  
+  g = g +
+    geom_point(data=centers, aes(x=x, y=y),
+               colour="green", size=2)
+  
+  colors = c("Sub Faults" = "blue", "SPDE Mesh" = "red", "Sub Fault Centroids" = "green")
+  g = g +
+    labs(colour = "Legend") +
+    scale_colour_manual(values = colors) +
+    coord_sf(xlim=-c(124, 126), ylim=c(41, 43))
+  
+  return(g)
+}
+
+
+
+
+
 
 # Plots values over a triangulated fault geometry
 # faultGeom: output of getFullFaultGeom
@@ -606,13 +954,6 @@ plotSubsidenceResiduals = function(modelFit, tvec, subDat, G, latRange=c(40,50),
     theme(panel.border = element_blank(), panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(), 
           panel.background = element_rect(fill='white'))
-}
-
-# plot all subfaults in the fault using ggplot.  Don't add data, returns the geom_polygon object
-plotFault = function(fault=csz, color="black") {
-  faultPolys = getFaultPolygons(fault)
-  geom_polygon(aes(x=longitude, y=latitude, group=factor(Fault)), data=faultPolys, 
-               fill=rgb(1,1,1, 0), color=color)
 }
 
 plotFaultDat = function(rows, plotVar="depth", varRange=NULL, plotData=TRUE, 

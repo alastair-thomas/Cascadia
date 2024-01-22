@@ -6,17 +6,17 @@ require(lattice)
 require(concaveman)
 
 setwd("~/Uni/NTNU/Masters Project/CSZ/R/Data/Fault Geometry")
-load("simpleFault.RData")
+load("mediumFault.RData")
 setwd("~/Uni/NTNU/Masters Project/CSZ/R/Code")
 
-nsf = length(simpleFault)
+nsf = length(mediumFault)
 
 x = rep(0, nsf)
 y = rep(0, nsf)
 
 for (i in 1:nsf){
-  x[i] = simpleFault[[i]]$lon
-  y[i] = simpleFault[[i]]$lat
+  x[i] = mediumFault[[i]]$lon
+  y[i] = mediumFault[[i]]$lat
 }
 
 xy = cbind(x, y)
@@ -40,8 +40,8 @@ hullExt = inla.nonconvex.hull.basic(xy, resolution=150, convex=-.4)
 inla_mesh = inla.mesh.2d(n=2000,
                          loc=xy,
                          boundary=list(concaveInt, hullExt),
-                         max.edge=c(40, 1000), # larger max edge for outerior
-                         cutoff = 10)
+                         max.edge=c(32, 1000), # larger max edge for outerior
+                         cutoff = 8)
 
 # INLA SPDE object
 # don't need to change
@@ -55,118 +55,5 @@ inla_spde = inla.spde2.matern(inla_mesh, alpha=2)
 
 # save
 setwd("~/Uni/NTNU/Masters Project/CSZ/R/Data/SPDE")
-save(inla_mesh, inla_spde, file="spdeMesh.RData")
+save(inla_mesh, inla_spde, file="spdeMeshMedium.RData")
 setwd("~/Uni/NTNU/Masters Project/CSZ/R/Code")
-
-
-# A function to plot the mesh onto the base map
-#
-# mesh - inla.mesh object
-# pts - options co-ordinates to plot
-# scale - doesn't do anything atm
-# proj - which projection the given data is in (should all be in same format)
-plotMesh = function(mesh, pts=NULL, scale=1.5, proj="northing"){
-  
-  if (proj == "northing"){
-    xy = mesh$loc[,1:2]
-    latLon = projCSZ(xy, inverse=TRUE, units="km")
-    mesh$loc[,1:2] = latLon
-  }
-  
-  g = plotBase(scale=scale, labels=FALSE, countryBoundary=FALSE)
-  
-  g = g +
-    gg(mesh,
-       edge.color="red", edge.linewidth=0.15,
-       int.linewidth=0.75, int.color="blue",
-       ext.linewidth = 0.75, ext.color = "blue") +
-    coord_sf(xlim=-c(131, 120), ylim=c(36, 54))
-  
-  # if want to plot the centers of the subfaults
-  if (is.null(pts) == FALSE){
-    if (proj == "northing"){
-      pts = projCSZ(pts, inverse=TRUE, units="km")
-    }
-    
-    print(data.frame(pts))
-    
-    g = g +
-      geom_point(data=data.frame(pts), aes(x=X, y=Y), size=0.1, color="red")
-  }
-  
-  return(g)
-}
-
-plotBothMesh = function(fault, mesh, meshProj="northing", scale=1.5){
-  if (meshProj == "northing"){
-    xy = mesh$loc[,1:2]
-    latLon = projCSZ(xy, inverse=TRUE, units="km")
-    mesh$loc[,1:2] = latLon
-  }
-  
-  # add the underlying spatial field plot SPDE
-  g = plotBase(scale=scale, labels=FALSE)
-  
-  g = g +
-    gg(mesh, edge.color="red",
-       edge.linewidth=0.15,
-       interior=FALSE,
-       exterior=FALSE)
-  
-  # add the sub faults
-  nsf = length(fault)
-  
-  ids = factor(1:nsf)
-  
-  depths = rep(0, nsf)
-  lons = rep(0, 3*nsf)
-  lats = rep(0, 3*nsf)
-  
-  for (i in 1:nsf){
-    lons[(((i-1)*3)+1):((i*3))] = fault[[i]]$corners[,1]
-    lats[(((i-1)*3)+1):((i*3))] = fault[[i]]$corners[,2]
-  }
-  
-  values = data.frame(
-    id = ids,
-    depth = -depths
-  )
-  
-  positions = data.frame(
-    id = rep(ids, each = 3),
-    x = lons,
-    y = lats
-  )
-  
-  # merge together
-  datapoly = merge(values, positions, by = c("id"))
-  
-  # add subfault mesh
-  g = g +
-      geom_polygon(data=datapoly, aes(x=x, y=y, group=id),
-                   color="blue", fill=NA, size=0.15)
-  
-  
-  # Finally add the centroids of subfaults
-  x = rep(0, nsf)
-  y = rep(0, nsf)
-  
-  for (i in 1:nsf){
-    x[i] = fault[[i]]$lon
-    y[i] = fault[[i]]$lat
-  }
-  
-  centers = data.frame(x=x, y=y)
-  
-  g = g +
-    geom_point(data=centers, aes(x=x, y=y),
-               colour="green", size=2)
-  
-  colors = c("Sub Faults" = "blue", "SPDE Mesh" = "red", "Sub Fault Centroids" = "green")
-  g = g +
-      labs(colour = "Legend") +
-      scale_colour_manual(values = colors) +
-      coord_sf(xlim=-c(124, 126), ylim=c(41, 43))
-  
-  return(g)
-}

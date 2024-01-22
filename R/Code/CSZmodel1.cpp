@@ -62,7 +62,7 @@ Type objective_function<Type>::operator() ()
   Type rho = sqrt(8.0*nu)/kappa;  // Distance at which correlation has dropped to 0.1 (p.  4 in Lindgren)
   
   Type a = 4.0 + kappa*kappa;
-  Type sigmaSquared = 1.0 / (4.0*3.14*nu*(a - 4.0));
+  Type sigmaSquared = 1.0 / (4.0*3.14*nu*(a - 4.0)*(tau));
     
   // report values needed for more analysis
   REPORT(Q);

@@ -1,58 +1,4 @@
 
-# script to plot the slab geometry
-# fault is the output of getFullFaultGeom
-
-plotFault = function(fault, z=c(NA), scale=1.5, fillZ=TRUE, legendTitle=""){
-  g = plotBase(scale=scale, labels=FALSE)
-  
-  nsf = length(fault)
-  
-  if (any(is.na(z))){
-    z = rep(0, nsf)
-  }
-  
-  ids = factor(1:nsf)
-  
-  lons = rep(0, 3*nsf)
-  lats = rep(0, 3*nsf)
-  
-  for (i in 1:nsf){
-    lons[(((i-1)*3)+1):((i*3))] = fault[[i]]$corners[,1]
-    lats[(((i-1)*3)+1):((i*3))] = fault[[i]]$corners[,2]
-  }
-  
-  values = data.frame(
-    id = ids,
-    z=z
-  )
-  
-  positions = data.frame(
-    id = rep(ids, each = 3),
-    x = lons,
-    y = lats
-  )
-  
-  # merge together
-  datapoly = merge(values, positions, by = c("id"))
-  
-  if (fillZ){
-    g = g +
-      geom_polygon(data=datapoly, aes(x=x, y=y, fill = z, group = id), alpha=0.8, color="white", linewidth=0.15) +
-      scale_fill_gradient(low="green", high="red", guide = guide_colorbar(reverse = TRUE)) +
-      theme(legend.position="right", legend.key.height = unit(3, 'cm')) +
-      labs(fill=legendTitle)
-  } else{
-    g = g +
-      geom_polygon(data=datapoly, aes(x=x, y=y, group=id), color="#D35400", fill=NA, linewidth=0.15)
-  }
-  
-  g = g +
-    coord_sf(xlim=-c(128.5, 122), ylim=c(39.8, 50.2))
-  
-  return(g)
-}
-
-
 # script for loading and discretizing Slab 2.0 data
 
 # Construct the full triangulated geometry of the fault for use in the Okada 
@@ -244,6 +190,35 @@ discretizeSlab2 = function(n=2000, max.n=-1, max.edge=c(15, 1000), maxDepth=30,
   
   return(list(mesh=mesh, geom=faultGeom, extent=projCSZ(concaveHull, units="km", inverse=TRUE), maxDepth=maxDepth))
 }
+
+getTrianglesFromMesh = function(mesh) {
+  
+  corners = mesh$loc[,1:2] # corners of the triangles, i.e. vertices
+  
+  # t: triangles, v: vertices
+  tv = mesh$graph$tv
+  vt = mesh$graph$vt
+  tt = mesh$graph$tt
+  tti = mesh$graph$tti
+  vv = mesh$graph$vv # sparse matrix, 1 if connected
+  
+  nV = nrow(corners) # number of points in mesh
+  nT = nrow(tv) # number of triangles in mesh
+  
+  # for each triangle, calculate its center
+  centers = matrix(nrow=nT, ncol=2) # (number of subfaults, 2)
+  triCorners = list()
+  for(ti in 1:nT) { # loop over each subfault
+    vInds = tv[ti,] # get the indicies for corners of this subfault
+    thisCoords = corners[vInds,] # get the corners of the subfault
+    
+    centers[ti,] = colMeans(thisCoords) # center is just the mean of Lon, Lat, Depth
+    triCorners = c(triCorners, list(thisCoords))
+  }
+  
+  return(triCorners)
+}
+
 
 # given a triangulated mesh constructed from discretizeSlab2, constructs 
 # a list of triangle centers and corners (also lists of external triangles 

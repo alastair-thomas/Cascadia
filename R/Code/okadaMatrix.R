@@ -41,11 +41,6 @@ getOkada = function(geom, lon, lat, earthquake){
     G[,i] = diag(allTopos[[i]]$dZ)
   }
   
-  # save matrix for next time
-  setwd("~/Uni/NTNU/Masters Project/CSZ/R/Data/Okada")
-  save(G, file=paste0("OkadaMatrix", earthquake, ".RData"))
-  setwd("~/Uni/NTNU/Masters Project/CSZ/R/Code")
-  
   return(G)
 }
 

@@ -92,6 +92,8 @@ library(tidyr)
 library(INLA)
 library(MASS)
 library(matrixcalc)
+library(akima)
+library(scico)
 
 #inf = sessionInfo()
 #if(inf$platform == "x86_64-apple-darwin17.0 (64-bit)") {
