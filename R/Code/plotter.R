@@ -113,9 +113,9 @@ readCountries = function(){
 
 # A function that plots a given inla.mesh, with or without colours
 #
-# mesh - an inla.mesh object
-# z - colours that relate to the verticies in the inla.mesh
-#      If NA then just the mesh is plotted
+# mesh        - an inla.mesh object
+# z           - colours that relate to the verticies in the inla.mesh
+#                If NA then just the mesh is plotted
 # colourScale - To differentiate between means and uncertainties
 plotX = function(mesh, proj="northing", z=c(NA), legendTitle="Spatial Effect", colourScale="viridis"){
   
@@ -124,8 +124,6 @@ plotX = function(mesh, proj="northing", z=c(NA), legendTitle="Spatial Effect", c
     latLon = projCSZ(xy, inverse=TRUE, units="km")
     mesh$loc[,1:2] = latLon
     mesh$crs = st_crs("EPSG:4326")
-  } else{
-    xy = projCSZ(mesh$loc[,1:2], units="km")
   }
   
   g = plotBase(scale=1.5, labels=FALSE, countryBoundary=FALSE)
@@ -133,13 +131,14 @@ plotX = function(mesh, proj="northing", z=c(NA), legendTitle="Spatial Effect", c
   if (any(is.na(z))){
     g = g +
       gg(mesh, edge.colour="black", interior=FALSE, exterior=FALSE)
+    
   } else{
     
-    boundaryXY = as.matrix(inla.mesh.boundary(mesh)[[1]]$loc[,1:2])
-    
+    boundaryXY = as.matrix(inla.mesh.interior(mesh)[[1]]$loc[,1:2])
+    boundaryXY2 = concaveman(boundaryXY)
     # Create the mask object
-    points = SpatialPoints(boundaryXY, proj4string=CRS("EPSG:4326"))
-    hullExt = SpatialPolygons(list(Polygons(list(Polygon(points)), "ExteriorBoundary")), proj4string=CRS("EPSG:4326"))
+    points = SpatialPoints(boundaryXY2, proj4string=CRS("EPSG:4326"))
+    hullInt = SpatialPolygons(list(Polygons(list(Polygon(points)), "ExteriorBoundary")), proj4string=CRS("EPSG:4326"))
     
     # here I am going to have to make my own plotting function
     # interpolate to a fine grid
@@ -148,12 +147,13 @@ plotX = function(mesh, proj="northing", z=c(NA), legendTitle="Spatial Effect", c
     g = g +
       gg(mesh,
          colour=z,
-         mask=hullExt) +
-      scale_fill_viridis_c(alpha=0.75, name = legendTitle, option = colourScale)
+         mask=hullInt, nx=300, ny=300) +
+      scale_fill_viridis_c(alpha=0.75, name = legendTitle, option = colourScale) +
+      theme(legend.position="right", legend.key.height = unit(3, 'cm'))
   }
   
   g = g +
-    coord_sf(xlim=-c(130, 121), ylim=c(36, 54))
+    coord_sf(xlim=-c(128.5, 122), ylim=c(39.8, 50.2))
   
   return(g)
 }

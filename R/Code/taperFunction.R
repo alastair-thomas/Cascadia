@@ -11,6 +11,7 @@ taperNew = function(lambda, depth){
   return(1 - exp(lambda*(depth - 30000)))
 }
 
+# The one we actually use
 taperSimple = function(lambda, depth){
   return(exp(-lambda*depth))
 }
@@ -24,16 +25,18 @@ y1 = taperPaper(l1, depths)
 l2 = 1/2000
 y2 = taperNew(l2, depths)
 
-l3 = 1/10
+
+
+
+l3 = exp(-2.2)
 y3 = taperSimple(l3, depths)
 
-data = data.frame(depth=depths,
-                  y1=y1, y2=y2, y3=y3)
+data = data.frame(depth=depths, y3=y3)
 
 # plot using plotly
 
 fig = ggplot(data, aes(x=depth, y=y3)) +
-  geom_line(color="red", linewidth=1.5) +
+  geom_line(color="blue") +
   labs(x = "Depth (km)", y = "Taper")
-fig
+plot(fig)
 
