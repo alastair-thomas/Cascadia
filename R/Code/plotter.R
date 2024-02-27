@@ -1,3 +1,77 @@
+
+# varName ∈ ["depth", "dip", "strike", "thickness", "uncertainty"]
+# returns a data frame of Lon, Lat, Variable
+#
+readGrid = function(varName){
+  Grid = nc_open(paste("Data/Slab2/", varName, ".grd", sep=""))
+  x = ncvar_get(Grid,"x")
+  y = ncvar_get(Grid,"y")
+  z = ncvar_get(Grid,"z")
+  
+  allLat = rep(y, each=length(x))
+  allLon = rep(x, length(y))
+  allLon = allLon - 360
+  
+  z = as.vector(z)
+  
+  grid = data.frame(Lon = allLon, Lat = allLat, z = z)
+  grid = na.omit(grid)
+  rownames(grid) = 1:nrow(grid)
+  grid = st_as_sf(x=grid, coords = c("Lon", "Lat"), crs=st_crs("EPSG:4326"))
+  pointData = st_coordinates(grid)
+  grid2 = as.data.frame(pointData)
+  grid2$Z = grid$z
+  
+  return(grid2)
+}
+
+# plots the Slab2 grids
+plotGrid = function(scale=2, varName = "depth", projection="NULL", legendTitle="Depth (km)"){
+  # gets the base map in given projection
+  g = plotBase(scale=scale, labels=FALSE)
+  
+  # read in the slab2 data for depth
+  grid = readGrid(varName)
+  
+  # make strike centered around zero
+  if (varName == "strike"){
+    grid$Z[grid$Z > 100] = grid$Z[grid$Z > 100] - 360
+  }
+  
+  # limit to 30km depths
+  if (varName == "depth"){
+    depths = -grid$Z
+  } else{
+    tempGrid = readGrid("depth")
+    depths = -tempGrid$Z
+  }
+  
+  depthMask = which(depths <= 30)
+  grid2 = grid[depthMask,]
+  
+  # limit the depth
+  g = g +
+    geom_tile(data=grid2, aes(x=X, y=Y, fill=Z), alpha=0.75) +
+    scale_fill_viridis(name = legendTitle) +
+    theme(legend.position = "right", legend.key.height = unit(3, 'cm'))
+  
+  # set the map in the correct projection
+  # works because everything is an sf object
+  if (projection == "UTM"){
+    
+    limits = data.frame(x = -c(128.5, 122), y = c(39.8, 50.2))
+    limits = st_as_sf(x=limits, coords = c("x", "y"), crs=st_crs("EPSG:4326"))
+    limits = toUTM(limits)
+    
+    g = g + coord_sf(xlim = c(st_coordinates(limits)[,1]), ylim = c(st_coordinates(limits)[,2]), crs=st_crs("EPSG:32610"))
+  }
+  else{
+    g = g + coord_sf(xlim = -c(128.5, 122), ylim = c(39.8, 50.2), crs=st_crs("EPSG:4326"))
+  }
+  
+  return(g)
+}
+
 plotErrors = function(error, signError, scale=2){
   # gets the base map of the CSZ
   g = plotBase(scale=scale)
@@ -132,6 +206,9 @@ plotX = function(mesh, proj="northing", z=c(NA), legendTitle="Spatial Effect", c
     g = g +
       gg(mesh, edge.colour="black", interior=FALSE, exterior=FALSE)
     
+    g = g +
+      coord_sf(xlim=-c(130.5, 121.5), ylim=c(36.5, 53.5))
+    
   } else{
     
     boundaryXY = as.matrix(inla.mesh.interior(mesh)[[1]]$loc[,1:2])
@@ -150,10 +227,10 @@ plotX = function(mesh, proj="northing", z=c(NA), legendTitle="Spatial Effect", c
          mask=hullInt, nx=300, ny=300) +
       scale_fill_viridis_c(alpha=0.75, name = legendTitle, option = colourScale) +
       theme(legend.position="right", legend.key.height = unit(3, 'cm'))
+    
+    g = g +
+      coord_sf(xlim=-c(128.5, 122), ylim=c(39.8, 50.2))
   }
-  
-  g = g +
-    coord_sf(xlim=-c(128.5, 122), ylim=c(39.8, 50.2))
   
   return(g)
 }
@@ -206,9 +283,9 @@ plotFault = function(fault, z=c(NA), scale=1.5, legendTitle="Slip (m)", colourSc
   if (any(is.na(z)) == FALSE){
     
     g = g +
-      geom_polygon(data=datapoly, aes(x=x, y=y, fill = z, group = id), alpha=0.8, color="white", linewidth=0.15) +
+      geom_polygon(data=datapoly, aes(x=x, y=y, fill = z, group = id), alpha=0.8, color="white", linewidth=0.1) +
       scale_fill_viridis_c(name = legendTitle, option = colourScale) +
-      theme(legend.position="right", legend.key.height = unit(3, 'cm')) +
+      theme(legend.position="right", legend.key.height = unit(0.75, 'cm')) +
       labs(fill=legendTitle)
     
     # otherwise just plot the triangles  
@@ -315,7 +392,7 @@ plotBothMesh = function(fault, mesh, meshProj="northing", scale=1.5){
   # add subfault mesh
   g = g +
     geom_polygon(data=datapoly, aes(x=x, y=y, group=id),
-                 color="blue", fill=NA, size=0.15)
+                 color="blue", fill=NA, linewidth=0.15)
   
   
   # Finally add the centroids of subfaults
@@ -337,7 +414,7 @@ plotBothMesh = function(fault, mesh, meshProj="northing", scale=1.5){
   g = g +
     labs(colour = "Legend") +
     scale_colour_manual(values = colors) +
-    coord_sf(xlim=-c(124, 126), ylim=c(41, 43))
+    coord_sf(xlim=-c(124.5, 125.5), ylim=c(41.5, 42.5))
   
   return(g)
 }

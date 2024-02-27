@@ -43,6 +43,8 @@ if(FALSE) {
   install.packages("TMB")
   install.packages("stars")
   install.packages("rSPDE")
+  install.packages("geosphere")
+  install.packages("rootSolve")
 }
 
 # load required packages and R scripts
@@ -94,6 +96,8 @@ library(MASS)
 library(matrixcalc)
 library(akima)
 library(scico)
+library(geosphere)
+library(rootSolve)
 
 #inf = sessionInfo()
 #if(inf$platform == "x86_64-apple-darwin17.0 (64-bit)") {

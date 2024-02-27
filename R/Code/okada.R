@@ -623,7 +623,7 @@ get_leg_angles = function(subfault) {
   j = 0
   for(v in v_list) {
     # vn = v/numpy.linalg.norm(v)
-    vn = v/norm(v)
+    vn = v/norm(as.matrix(v)) # changed v to a matrix
     k = j
     # l = (j+1)%3
     l = (j+1)%%3

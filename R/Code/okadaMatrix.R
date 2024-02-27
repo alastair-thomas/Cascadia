@@ -20,7 +20,7 @@ getUnitMatrix = function(fault, x, y,
 }
 
 # returns the Okada matrix for the specified data locations and subfault geometry
-getOkada = function(geom, lon, lat, earthquake){
+getOkada = function(geom, lon, lat){
   allTopos = getUnitMatrix(geom, x=lon, y=lat)
   
   # allTopos[[i]]$dZ in an NxN matrix which gives the effect of the ith subfault

@@ -1,22 +1,31 @@
 # utility functions (miscellaneous but useful)
 
-getMomentFromSlip = function(slips, rigidity=4*10^10, doTaper=FALSE, lambda=1, fault=csz, depths=getFaultCenters(fault)[,3], 
-                             normalizeTaper=FALSE, dStar=28000) {
-  # get fault total area
-  areas = fault$length*fault$width
-  totArea = sum(areas)
+# Calculates the moment of an earthquake from the slips and fault
+#
+getMomentFromSlip = function(slips, fault, rigidity=3*10^10) {
   
-  if(doTaper)
-    slips = slips*taper(depths, lambda, dStar=dStar, normalize=normalizeTaper)
+  K = length(fault) # the number of sub faults
+  areas = rep(0, K) # the area of each sub fault
   
-  Mo = sum(slips*rigidity*areas)
-  
-  if(Mo <= 0) {
-    warning("negative seismic moment observed")
-    return(0)
+  # loop over each sub fault
+  for (i in 1:K){
+    lonLat = fault[[i]]$corners[,c(1,2)]      # extract longitude/latitude
+    areas[i] = geosphere::areaPolygon(lonLat) # calculate sub fault area
   }
   
-  (log10(Mo) - 9.05)/1.5
+  # calculate moment
+  Mo = sum(rigidity*areas*slips)
+  
+  if(Mo <= 0) {
+    warning("Negative seismic moment observed...!")
+    return(0)
+  }else{
+    # https://www.usgs.gov/programs/earthquake-hazards/earthquake-magnitude-energy-release-and-shaking-intensity'
+    # 
+    Mw = (2/3)*(log10(Mo) - 9.1)
+  }
+  
+  return(Mw)
 }
 
 # Projects from lon/lat (EPSG:4326) to utm coordinates in km based on UTM 10 
