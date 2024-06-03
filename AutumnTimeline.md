@@ -1,5 +1,6 @@
 
 # Timeline for the Autumn 2023 Semester
+This timeline was made as a rough plan for my work. Obviously it didn't exactly happen like this, but it gives an overview how how the project was structured.
 ## Week 34
 - Background reading on the Cascadia fault line
 ## Week 35
