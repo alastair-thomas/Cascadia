@@ -11,4 +11,4 @@ Five spatial models are given in this repository, which are written in TMB files
 3. The anisotorpic version of model 1;
 4. The anisotropic version of model 2.
 
-The code can be freely used, but I cannot guarantee that it will be easy to get it to compile on your own systems as it is not written specifically for sharing purposes.
+The code can be freely used, but I cannot guarantee that it will be easy to compile on your own systems as it is not written specifically for sharing purposes.
